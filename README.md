@@ -6,12 +6,40 @@ gráfica (Swing) para que el Encargado de Bolsines (EB) lo pruebe interactivamen
 
 ## Cómo correrlo
 
-Parado en esta carpeta (`dsi to`):
+Necesita un **JDK 17 o superior** (el código usa sintaxis moderna de Java; con
+Java 8 no corre) y el driver JDBC de Postgres en `lib/postgresql.jar`
+(`postgresql-42.7.4`, de Maven Central; no se versiona en git).
+
+1. **Datos de prueba:** correr una sola vez `db/seed_cu28.sql` en el SQL Editor
+   de Supabase, sobre las tablas vacías.
+2. **Conexión:** copiar `.env.example` como `.env` en la raíz del proyecto y
+   completar los tres valores con los datos de Supabase (botón *Connect* del
+   proyecto, método *Session pooler*). El `.env` está en `.gitignore`: no se
+   sube a git.
+
+```
+SUPABASE_DB_URL=jdbc:postgresql://HOST:5432/postgres?sslmode=require
+SUPABASE_DB_USER=postgres.<ref-del-proyecto>
+SUPABASE_DB_PASSWORD=<contraseña de la base>
+```
+
+   La URL tiene que ser formato JDBC (`jdbc:postgresql://...`), sin usuario ni
+   contraseña adentro. Las variables de entorno del sistema, si existen, tienen
+   prioridad sobre el `.env`. La contraseña es la de la base de datos (no es
+   ninguna de las API keys); se restablece en *Project Settings → Database*.
+3. **Compilar y correr**, siempre parado en la raíz del proyecto (ahí se busca
+   el `.env`). En Windows el classpath se separa con `;`:
 
 ```bash
 javac -d out -encoding UTF-8 $(find src -name "*.java")
-java -cp out app.MainCU28
+java -cp "out;lib/postgresql.jar" app.MainCU28
 ```
+
+   (En Linux/Mac: `-cp "out:lib/postgresql.jar"`.) Si el `java` del PATH es
+   anterior a 17, usar la ruta completa de un JDK nuevo.
+
+Si falla algo al arrancar (falta una variable, no hay conexión o no hay una
+sesión abierta en la tabla `sesion`), se muestra un cartel con el motivo.
 
 Se abre un menú del Encargado de Bolsines. La única opción habilitada es
 **"1. Registrar recepción de bolsín"** (las otras tres son de otros casos de
@@ -27,12 +55,30 @@ src/
   control/   GestorRecepcionDeBolsin (el "cerebro" del CU28)
   boundary/  PantallaPrincipalEncargadoBolsines, PantallaRecepcionDeBolsin,
              PantallaNotificacionRecepcionBolsin
-  app/       MainCU28 (carga datos de prueba y arranca la ventana)
+  persistencia/  Conexion, CargadorDeDatos, RepositorioRecepcion (JDBC)
+  app/       MainCU28 (carga los datos de la base y arranca la ventana)
+db/          seed_cu28.sql (datos de prueba)
 ```
 
-No hay base de datos real: cada entidad guarda su propia lista en memoria
-(por ejemplo `Bolsin` tiene una lista estática de todos los bolsines creados),
-a modo de "persistencia" simulada para poder probar las búsquedas.
+Los datos viven en una base Postgres (Supabase), accedida con JDBC puro. El
+diagrama de secuencia del CU28 no cambia: al arrancar, `CargadorDeDatos` lee
+las tablas y arma los objetos del modelo (las listas estáticas de `Bolsin` y
+`Estado` se llenan desde la base), y el flujo sigue operando en memoria tal
+cual el diagrama. Al confirmar, `GestorRecepcionDeBolsin.guardarCambios()`
+guarda en una sola transacción los cambios que dejó el CU (nuevos
+`CambioEstado`, cierre de los anteriores y estado de cada remito). Esa llamada
+es infraestructura: no es un mensaje del diagrama de secuencia. Si el guardado
+falla, el CU se corta (no se notifica a la CM origen) y la pantalla muestra el
+error; como los objetos en memoria ya habían cambiado, hay que reiniciar la app.
+
+La base ya tiene el campo `remito.id_estado` (Remito → Estado del diagrama de
+clases). Las columnas `id_cm_origen` / `id_cm_destino` de `remito` y
+`id_cm_origen` de `documentacion` vienen de otros casos de uso del ERS (cada
+documentación sale de una CM; un remito va dirigido a una CM destino): el CU28
+no las usa y el seed las completa.
+
+Las columnas `timestamp` no guardan zona horaria. Java escribe la hora local,
+por eso el seed también usa hora argentina.
 
 ## Qué hace el flujo (paso a paso)
 
