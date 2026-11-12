@@ -10,6 +10,8 @@ import modelo.Empleado;
 import modelo.Estado;
 import modelo.Remito;
 import modelo.Sesion;
+import persistencia.PersistenciaException;
+import persistencia.RepositorioRecepcion;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -107,8 +109,26 @@ public class GestorRecepcionDeBolsin {
             default -> throw new IllegalStateException("Opcion de recepcion invalida: " + opcionSeleccionada);
         }
 
+        if (!guardarCambios()) {
+            return;
+        }
+
         llamarCU29();
         pantalla.finCU();
+    }
+
+    // Persistencia: NO es un mensaje del diagrama de secuencia, es una llamada de
+    // infraestructura que guarda en la base lo que acaban de dejar los
+    // actualizarDatos...(). Si falla, el CU no sigue (no se notifica a la CM
+    // origen ni se informa exito).
+    private boolean guardarCambios() {
+        try {
+            new RepositorioRecepcion().guardar(bolsinSeleccionado, remitos);
+            return true;
+        } catch (PersistenciaException e) {
+            pantalla.mostrarErrorGuardado(e.getMessage());
+            return false;
+        }
     }
 
     // Observacion 1: el EB puede cancelar el caso de uso cuando lo decida.

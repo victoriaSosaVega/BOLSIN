@@ -288,6 +288,13 @@ public class PantallaRecepcionDeBolsin extends JFrame {
         gestor.cancelarCU();
     }
 
+    // Camino de error de la persistencia (no es parte del diagrama de secuencia).
+    public void mostrarErrorGuardado(String detalle) {
+        areaFinal.setText("No se pudo guardar la recepcion en la base de datos.\n"
+                + "El CU28 no se completo y no se notifico a la CM origen.\n\n" + detalle);
+        cardLayout.show(panelContenedor, CARD_FIN);
+    }
+
     public void mostrarCancelacion() {
         areaFinal.setText("CU28 cancelado por el Encargado de Bolsines.");
         cardLayout.show(panelContenedor, CARD_FIN);
