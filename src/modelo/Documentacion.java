@@ -6,17 +6,32 @@ import java.util.List;
 
 public class Documentacion {
 
-    private String numero;
+    // Clave de la tabla documentacion (solo para persistencia).
+    private Integer id;
+    private int numero;
     private String asunto;
     private LocalDate fechaPase;
     private TipoDocumentacion tipoDocumentacion;
     private List<CambioEstadoDocumentacion> cambiosEstado = new ArrayList<>();
 
-    public Documentacion(String numero, String asunto, LocalDate fechaPase, TipoDocumentacion tipoDocumentacion) {
+    public Documentacion(int numero, String asunto, LocalDate fechaPase, TipoDocumentacion tipoDocumentacion) {
         this.numero = numero;
         this.asunto = asunto;
         this.fechaPase = fechaPase;
         this.tipoDocumentacion = tipoDocumentacion;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    // Lo usa la capa de persistencia para guardar los cambios de estado.
+    public List<CambioEstadoDocumentacion> getCambiosEstado() {
+        return cambiosEstado;
     }
 
     public String getAsunto() {

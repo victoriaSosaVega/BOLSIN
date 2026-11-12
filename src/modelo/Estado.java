@@ -13,6 +13,8 @@ public class Estado {
     // así el Gestor puede buscarlo por ámbito + condición (Polimorfismo/Experto).
     private static List<Estado> estados = new ArrayList<>();
 
+    // Clave de la tabla estado (solo para persistencia; no forma parte del diagrama).
+    private Integer id;
     private String nombre;
     private String descripcion;
     private String ambito;
@@ -22,6 +24,14 @@ public class Estado {
         this.descripcion = descripcion;
         this.ambito = ambito;
         estados.add(this);
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getNombre() {

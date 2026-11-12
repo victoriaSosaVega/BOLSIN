@@ -9,6 +9,8 @@ public class Bolsin {
     // "Persistencia" simulada: repositorio estático en memoria (sin BD real).
     private static List<Bolsin> bolsines = new ArrayList<>();
 
+    // Clave de la tabla bolsin (solo para persistencia).
+    private Integer id;
     private int numeroBolsin;
     private String numeroPrecinto;
     private LocalDate fecha;
@@ -26,6 +28,19 @@ public class Bolsin {
         this.cmOrigen = cmOrigen;
         this.cmDestino = cmDestino;
         bolsines.add(this);
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    // Lo usa la capa de persistencia para guardar los cambios de estado.
+    public List<CambioEstadoBolsin> getCambiosEstado() {
+        return cambiosEstado;
     }
 
     public int getNumeroBolsin() {

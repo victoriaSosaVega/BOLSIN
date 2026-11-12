@@ -2,6 +2,8 @@ package modelo;
 
 public class CM {
 
+    // Clave de la tabla cm (solo para persistencia; no forma parte del diagrama).
+    private Integer id;
     private String codigo;
     private String nombre;
     private String direccion;
@@ -14,6 +16,14 @@ public class CM {
         this.direccion = direccion;
         this.email = email;
         this.telefono = telefono;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getNombre() {

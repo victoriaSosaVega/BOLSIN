@@ -6,6 +6,8 @@ import java.util.List;
 
 public class Remito {
 
+    // Clave de la tabla remito (solo para persistencia).
+    private Integer id;
     private int numero;
     private LocalDate fecha;
     private List<DetalleRemito> detalleRemito = new ArrayList<>();
@@ -14,6 +16,14 @@ public class Remito {
     public Remito(int numero, LocalDate fecha) {
         this.numero = numero;
         this.fecha = fecha;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public int getNumero() {
