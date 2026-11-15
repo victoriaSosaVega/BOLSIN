@@ -9,13 +9,11 @@ public class CambioEstadoDocumentacion {
     private LocalDateTime fechaHoraInicio;
     private LocalDateTime fechaHoraFin;
     private Estado estado;
-    private Empleado responsable;
 
     // new() del diagrama de secuencia.
-    public CambioEstadoDocumentacion(Estado estado, Empleado responsable) {
+    public CambioEstadoDocumentacion(LocalDateTime fechaActual, Estado estado) {
+        this.fechaHoraInicio = fechaActual;
         this.estado = estado;
-        this.responsable = responsable;
-        this.fechaHoraInicio = LocalDateTime.now();
     }
 
     // Solo para reconstruir un cambio de estado ya guardado en la base. La
@@ -30,8 +28,12 @@ public class CambioEstadoDocumentacion {
         return fechaHoraFin == null;
     }
 
-    public void setFechaFin() {
-        this.fechaHoraFin = LocalDateTime.now();
+    public void setFechaHoraFin(LocalDateTime fechaActual) {
+        this.fechaHoraFin = fechaActual;
+    }
+
+    public void setEstado(Estado estado) {
+        this.estado = estado;
     }
 
     public Estado getEstado() {

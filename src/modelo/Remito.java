@@ -1,6 +1,7 @@
 package modelo;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,10 +13,12 @@ public class Remito {
     private LocalDate fecha;
     private List<DetalleRemito> detalleRemito = new ArrayList<>();
     private Estado estado;
+    private final EnBolsinEnviado estadoEnBolsinEnviado;
 
     public Remito(int numero, LocalDate fecha) {
         this.numero = numero;
         this.fecha = fecha;
+        this.estadoEnBolsinEnviado = new EnBolsinEnviado();
     }
 
     public Integer getId() {
@@ -46,14 +49,7 @@ public class Remito {
         return estado;
     }
 
-    public void marcarRecibidoyAceptado(Estado estadoRemito, Estado estadoDocumentacion, Empleado responsable) {
-        setEstado(estadoRemito);
-        for (DetalleRemito detalle : detalleRemito) {
-            marcarRecibidayAceptadaDocumentacion(detalle, estadoDocumentacion, responsable);
-        }
-    }
-
-    public void marcarRecibidayAceptadaDocumentacion(DetalleRemito detalle, Estado estadoDocumentacion, Empleado responsable) {
-        detalle.marcarRecibidayAceptadaDocumentacion(estadoDocumentacion, responsable);
+    public void marcarRecibidoyAceptado(LocalDateTime fechaActual) {
+        estadoEnBolsinEnviado.marcarRecibidoyAceptado(this, fechaActual);
     }
 }

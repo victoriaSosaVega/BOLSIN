@@ -20,10 +20,16 @@ public class Estado {
     private String ambito;
 
     public Estado(String nombre, String descripcion, String ambito) {
+        this(nombre, descripcion, ambito, true);
+    }
+
+    protected Estado(String nombre, String descripcion, String ambito, boolean registrar) {
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.ambito = ambito;
-        estados.add(this);
+        if (registrar) {
+            estados.add(this);
+        }
     }
 
     public Integer getId() {

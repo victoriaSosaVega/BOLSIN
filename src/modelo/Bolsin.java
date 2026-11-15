@@ -1,6 +1,7 @@
 package modelo;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +18,7 @@ public class Bolsin {
     private double peso;
     private CM cmOrigen;
     private CM cmDestino;
+    private final Enviado estadoEnviado; //luego cambiar por la clase padre
     private List<Remito> remitos = new ArrayList<>();
     private List<CambioEstadoBolsin> cambiosEstado = new ArrayList<>();
 
@@ -27,6 +29,7 @@ public class Bolsin {
         this.peso = peso;
         this.cmOrigen = cmOrigen;
         this.cmDestino = cmDestino;
+        this.estadoEnviado = new Enviado(this);
         bolsines.add(this);
     }
 
@@ -85,22 +88,17 @@ public class Bolsin {
         return remitos;
     }
 
-    private CambioEstadoBolsin crearCambioEstado(Estado estado, Empleado responsable) {
-        return new CambioEstadoBolsin(estado, responsable);
+    CambioEstadoBolsin buscarHistorial(LocalDateTime fechaActual, List<CambioEstadoBolsin> historial) {
+        for (CambioEstadoBolsin cambio : historial) {
+            if (cambio.esActual()) {
+                return cambio;
+            }
+        }
+        return null;
     }
 
-    public void marcarRecibidoEnCMDestino(Estado nuevoEstado, Empleado responsable) {
-        CambioEstadoBolsin actual = getCambioEstadoActual();
-        if (actual != null) {
-            actual.setFechaFin();
-        }
-        agregarCambioEstado(crearCambioEstado(nuevoEstado, responsable));
-    }
-
-    public void marcarRecibidoyAceptadoRemito(Estado estadoRemito, Estado estadoDocumentacion, Empleado responsable) {
-        for (Remito remito : remitos) {
-            remito.marcarRecibidoyAceptado(estadoRemito, estadoDocumentacion, responsable);
-        }
+    public void marcarRecibidoEnCMDestino(LocalDateTime fechaActual) {
+        estadoEnviado.marcarRecibidoEnCMDestino(this, fechaActual, null, cambiosEstado);
     }
 
     // Experto: Bolsin es quien tiene la CM destino y el estado, así que es
