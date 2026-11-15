@@ -1,35 +1,33 @@
 package modelo;
 
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 
-public class Estado {
+/**
+ * Estado abstracto del patron State. Cada subclase concreta implementa solo las
+ * transiciones que permite; el resto lanza IllegalStateException.
+ *
+ * Los contextos (Bolsin, Remito, Documentacion) delegan en su estado actual y
+ * se pasan a si mismos por parametro, de modo que los estados no guardan
+ * referencias a ellos.
+ */
+public abstract class Estado {
 
     public static final String AMBITO_BOLSIN = "Bolsin";
     public static final String AMBITO_REMITO = "Remito";
     public static final String AMBITO_DOCUMENTACION = "Documentacion";
 
-    // "Persistencia" simulada: todo Estado creado queda registrado acá,
-    // así el Gestor puede buscarlo por ámbito + condición (Polimorfismo/Experto).
-    private static List<Estado> estados = new ArrayList<>();
-
     // Clave de la tabla estado (solo para persistencia; no forma parte del diagrama).
+    // Los estados creados por crearEstado() no la tienen: se resuelve por nombre y ambito al guardar.
     private Integer id;
-    private String nombre;
-    private String descripcion;
-    private String ambito;
+    private final String nombre;
+    private final String descripcion;
+    private final String ambito;
 
-    public Estado(String nombre, String descripcion, String ambito) {
-        this(nombre, descripcion, ambito, true);
-    }
-
-    protected Estado(String nombre, String descripcion, String ambito, boolean registrar) {
+    protected Estado(String nombre, String descripcion, String ambito) {
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.ambito = ambito;
-        if (registrar) {
-            estados.add(this);
-        }
     }
 
     public Integer getId() {
@@ -48,51 +46,99 @@ public class Estado {
         return descripcion;
     }
 
-    public boolean esAmbitoBolsin() {
-        return AMBITO_BOLSIN.equals(ambito);
+    public String getAmbito() {
+        return ambito;
     }
 
-    public boolean esAmbitoRemito() {
-        return AMBITO_REMITO.equals(ambito);
-    }
-
-    public boolean esAmbitoDocumentacion() {
-        return AMBITO_DOCUMENTACION.equals(ambito);
-    }
-
+    // Consultas polimorficas (reemplazan a las comparaciones por nombre).
     public boolean esEnviado() {
-        return "Enviado".equals(nombre);
+        return false;
     }
 
-    public boolean esRecibidoEnCMDestino() {
-        return "Recibido en CM Destino".equals(nombre);
+    // --- Transiciones de la documentacion ---
+
+    public void incluirEnRemito(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                                List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("incluirEnRemito");
     }
 
-    public boolean esRecibidoyAceptado() {
-        return "Recibido y Aceptado".equals(nombre);
+    public void quitarDeRemito(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                               List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("quitarDeRemito");
     }
 
-    public boolean esRecibidayAceptada() {
-        return "Recibida y Aceptada".equals(nombre);
+    public void reenviar(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                         List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("reenviar");
     }
 
-    public boolean esRecibidayRechazada() {
-        return "Recibida y Rechazada".equals(nombre);
+    public void incluirEnBolsin(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                                List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("incluirEnBolsin");
     }
 
-    public boolean esNoRecibida() {
-        return "No Recibida".equals(nombre);
+    public void quitarDeBolsin(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                               List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("quitarDeBolsin");
     }
 
-    public boolean esRecibidoyAceptadoParcial() {
-        return "Recibido y Aceptado Parcial".equals(nombre);
+    public void retirar(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                        List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("retirar");
     }
 
-    public boolean esParaRedirigir() {
-        return "Para Redirigir".equals(nombre);
+    public void marcarRecibidayAceptada(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                                        List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("marcarRecibidayAceptada");
     }
 
-    public static List<Estado> getEstados() {
-        return estados;
+    public void marcarRecibidayRechazada(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                                         List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("marcarRecibidayRechazada");
+    }
+
+    public void marcarNoRecibida(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                                 List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("marcarNoRecibida");
+    }
+
+    public void redirigir(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                          List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("redirigir");
+    }
+
+    public void darDeBaja(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
+                          List<CambioEstadoDocumentacion> historiales) {
+        noPermitida("darDeBaja");
+    }
+
+    // --- Transiciones del bolsin y del remito ---
+
+    public void marcarRecibidoEnCMDestino(Bolsin bolsin, LocalDateTime fechaActual, Empleado empleado) {
+        noPermitida("marcarRecibidoEnCMDestino");
+    }
+
+    public void marcarRecibidoyAceptado(Remito remito, LocalDateTime fechaActual, Empleado empleado) {
+        noPermitida("marcarRecibidoyAceptado");
+    }
+
+    // Cierra el cambio de estado vigente de la documentacion, registra el nuevo y
+    // actualiza el estado de la documentacion. Lo comparten las transiciones que no
+    // son las del CU28 (estas ultimas, en EnBolsinEnviadoDocumentacion, muestran cada paso).
+    protected void cambiarEstadoDocumentacion(Documentacion documentacion, Estado nuevoEstado,
+                                              LocalDateTime fechaActual, Empleado empleado,
+                                              List<CambioEstadoDocumentacion> historiales) {
+        for (CambioEstadoDocumentacion cambio : historiales) {
+            if (cambio.esActual()) {
+                cambio.setFechaHoraFin(fechaActual);
+            }
+        }
+        documentacion.setEstado(nuevoEstado);
+        documentacion.agregarCambioEstado(new CambioEstadoDocumentacion(fechaActual, nuevoEstado, empleado));
+    }
+
+    private void noPermitida(String operacion) {
+        throw new IllegalStateException(
+                "La operacion " + operacion + " no esta permitida en el estado " + nombre + " (" + ambito + ")");
     }
 }

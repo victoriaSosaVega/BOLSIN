@@ -42,7 +42,7 @@ public class GestorRecepcionDeBolsin {
     }
 
     private void buscarBolsinesEnEstadoEnviadoParaCMEmpleado() {
-        bolsines = Bolsin.buscarBolsinesEnEstadoEnviadoParaCMEmpleado(cmEmpleado);
+        bolsines = Bolsin.buscarBolsinesEnEstadoEnviadoParaCMEmpleado(cmEmpleado.getNombre());
     }
 
     public void tomarBolsinSeleccionado(Bolsin seleccionado) {
@@ -64,7 +64,7 @@ public class GestorRecepcionDeBolsin {
             return;
         }
 
-        registrarRecepcionBolsin();
+        registrarRecepcionDeBolsin();
 
         if (!guardarCambios()) {
             return;
@@ -74,9 +74,9 @@ public class GestorRecepcionDeBolsin {
         pantalla.finCU();
     }
 
-    public void registrarRecepcionBolsin() {
+    public void registrarRecepcionDeBolsin() {
         LocalDateTime fechaActual = obtenerFechaActual();
-        bolsinSeleccionado.marcarRecibidoEnCMDestino(fechaActual);
+        bolsinSeleccionado.marcarRecibidoEnCMDestino(fechaActual, empleadoLogueado);
     }
 
     private LocalDateTime obtenerFechaActual() {

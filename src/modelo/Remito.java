@@ -13,12 +13,10 @@ public class Remito {
     private LocalDate fecha;
     private List<DetalleRemito> detalleRemito = new ArrayList<>();
     private Estado estado;
-    private final EnBolsinEnviado estadoEnBolsinEnviado;
 
     public Remito(int numero, LocalDate fecha) {
         this.numero = numero;
         this.fecha = fecha;
-        this.estadoEnBolsinEnviado = new EnBolsinEnviado();
     }
 
     public Integer getId() {
@@ -49,7 +47,11 @@ public class Remito {
         return estado;
     }
 
-    public void marcarRecibidoyAceptado(LocalDateTime fechaActual) {
-        estadoEnBolsinEnviado.marcarRecibidoyAceptado(this, fechaActual);
+    public void marcarRecibidoyAceptado(LocalDateTime fechaActual, Empleado empleado) {
+        if (estado == null) {
+            throw new IllegalStateException("El remito " + numero
+                    + " no tiene estado en la base: correr db/migracion_state.sql");
+        }
+        estado.marcarRecibidoyAceptado(this, fechaActual, empleado);
     }
 }

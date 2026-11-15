@@ -1,0 +1,215 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 90
+hide circle
+
+' ===================== Control =====================
+class "GestorRecepciónDeBolsín" as GestorRecepcionDeBolsin <<control>> {
+  - empleadoLogueado : Empleado
+  - cmEmpleado : CM
+  - bolsines : Bolsin[]
+  - bolsinSeleccionado : Bolsin
+  - remitos : Remito
+  - estadoRecibidoEnCMDestino : Estado
+  - estadoRecibidoyAceptado : Estado
+  - estadoRecibidayAceptada : Estado
+  --
+  + registrarRecepcionDeBolsin(): void
+  + obtenerFechaActual(): DateTime
+}
+
+' ===================== Entidades =====================
+class "CambioEstadoBolsín" as CambioEstadoBolsin <<entity>> {
+  - fechaHoraFin: DateTime
+  - fechaHoraInicio: DateTime
+  --
+  + setFechaHoraFin(fechaActual: DateTime)
+  + new(fechaActual: DateTime, estado: Estado): CambioEstadoBolsin
+}
+
+class Bolsin <<entity>> {
+  - numeroBolsin: Int
+  - numeroPrecinto: Int
+  - fecha: Date
+  - peso: Float
+  --
+  + marcarRecibidoEnCMDestino(fechaActual: DateTime)
+  + setEstado(estado: Estado)
+  + agregarCambioEstado(cambioEstado: CambioEstadoBolsin)
+}
+
+class Remito <<entity>> {
+  - numero: Int
+  - fecha: Date
+  --
+  + marcarRecibidoyAceptado(fechaActual: DateTime)
+  + setEstado(estado: Estado)
+}
+
+class DetalleRemito <<entity>> {
+  - areaCMCDestino: String
+  --
+  + marcarRecibidayAceptadaDocumentacion(fechaActual: DateTime)
+}
+
+class "Documentación" as Documentacion <<entity>> {
+  - numero: Int
+  - asunto: String
+  - fechaPase: Date
+  --
+  + getAsunto()
+  + getTipo()
+  + marcarRecibidayAceptada(fechaActual: DateTime)
+  + setEstado(estado: Estado)
+  + agregarCambioEstado(cambioEstado: CambioEstadoDocumentacion)
+}
+
+class "CambioEstadoDocumentación" as CambioEstadoDocumentacion <<entity>> {
+  - fechaHoraFin: DateTime
+  - fechaHoraInicio: DateTime
+  --
+  + esActual(): Boolean
+  + setFechaHoraFin(fechaActual: DateTime)
+  + new(fechaActual: DateTime, estado: Estado): CambioEstadoDocumentacion
+}
+
+' ===================== Estado (State) =====================
+abstract class Estado <<abstract>> {
+  - nombre: String
+  - descripcion: String
+  - ambito: String
+  --
+  + incluirEnRemito()
+  + quitarDeRemito()
+  + reenviar()
+  + incluirEnBolsin()
+  + quitarDeBolsin()
+  + retirar()
+  + marcarRecibidayAceptada()
+  + marcarRecibidayRechazada()
+  + marcarNoRecibida()
+  + redirigir()
+  + darDeBaja()
+  + marcarRecibidoEnCMDestino()
+  + marcarRecibidoyAceptado()
+}
+
+class Registrada <<entity>> {
+  --
+  + new(): Registrada
+  + incluirEnRemito()
+}
+
+class NoRecibida <<entity>> {
+  --
+  + new(): NoRecibida
+  + reenviar()
+  + darDeBaja()
+}
+
+class ParaRedirigir <<entity>> {
+  --
+  + new(): ParaRedirigir
+  + marcarRecibidayRechazada()
+  + marcarRecibidayAceptada()
+}
+
+class Enviado <<entity>> {
+  --
+  + marcarRecibidoEnCMDestino(this: Bolsin, fechaActual: dateTime, empleado: Empleado)
+  + marcarRecibidoyAceptadoRemito(fechaActual: DateTime)
+  + crearEstado()
+  + crearCambioEstado(fechaActual: DateTime, estado: Estado)
+}
+
+class EnRemito <<entity>> {
+  --
+  + new(): EnRemito
+  + incluirEnBolsin()
+  + quitarDeRemito()
+}
+
+class RecibidaYRechazada <<entity>> {
+  --
+  + new(): RecibidaYRechazada
+  + reenviar()
+}
+
+class EnBolsinEnviado <<entity>> {
+  --
+  + marcarRecibidoyAceptado(this: Remito, fechaActual: DateTime)
+  + marcarRecibidayAceptadaDocumentacion(fechaActual: DateTime)
+  + crearEstado()
+}
+
+class EnBolsinSaliente <<entity>> {
+  --
+  + new(): EnBolsinSaliente
+  + quitarDeBolsin()
+  + retirar()
+}
+
+' En el original hay DOS clases llamadas "EnBolsinEnviado".
+' Se usa un alias para que PlantUML no las fusione.
+class "EnBolsinEnviado" as EnBolsinEnviadoDoc <<entity>> {
+  --
+  + marcarRecibidayAceptada(this: Documentacion, fechaActual: DateTime, empleado: Empleado, historiales: CambioEstadoDocumentacion[])
+  + buscarHistorial(fechaActual: DateTime, historial: CambioEstadoDocumentacion[])
+  + esActual(): Boolean
+  + crearEstado()
+  + crearCambioEstado(fechaActual: DateTime, estado: Estado)
+  + marcarNoRecibida()
+  + marcarRecibidayRechazada()
+  + marcarRecibidayAceptada()
+  + redirigir()
+}
+
+class RecibidayAceptada <<entity>> {
+  --
+  + new(): RecibidayAceptada
+}
+
+class DeBaja <<entity>> {
+  --
+  + new(): DeBaja
+}
+
+class RecibidoyAceptado <<entity>> {
+  --
+  + new(): RecibidoyAceptado
+}
+
+class RecibidayEnCMDestino <<entity>> {
+  --
+  + new(): RecibidoEnCMDestino
+}
+
+' ===================== Relaciones =====================
+GestorRecepcionDeBolsin ..> Bolsin
+
+Bolsin --> CambioEstadoBolsin : cambioEstadoBolsin
+CambioEstadoBolsin --> "1" Estado : estado
+CambioEstadoDocumentacion --> "1" Estado : estado
+Bolsin o--> "1..*" Remito : remito
+Remito o--> "1..*" DetalleRemito : detalleRemito
+DetalleRemito --> "1" Documentacion : documentacion
+Documentacion --> "1..*" CambioEstadoDocumentacion : cambioEstadoDocumentacion
+
+' ===================== Herencia de Estado =====================
+Estado <|-- Registrada
+Estado <|-- ParaRedirigir
+Estado <|-- EnRemito
+Estado <|-- RecibidaYRechazada
+Estado <|-- EnBolsinSaliente
+Estado <|-- RecibidayAceptada
+Estado <|-- NoRecibida
+Estado <|-- RecibidoyAceptado
+Estado <|-- DeBaja
+Estado <|-- RecibidayEnCMDestino
+Estado <|--- Enviado
+Estado <|--- EnBolsinEnviado
+Estado <|--- EnBolsinEnviadoDoc
+
+@enduml

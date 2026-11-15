@@ -16,7 +16,7 @@ public class DetalleRemito {
         return documentacion;
     }
 
-    public void marcarRecibidayAceptadaDocumentacion(LocalDateTime fechaActual) {
-        documentacion.marcarRecibidayAceptada(fechaActual);
+    public void marcarRecibidayAceptadaDocumentacion(LocalDateTime fechaActual, Empleado empleado) {
+        documentacion.marcarRecibidayAceptada(fechaActual, empleado);
     }
 }

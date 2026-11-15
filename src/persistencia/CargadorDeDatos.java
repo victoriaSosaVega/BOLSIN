@@ -24,10 +24,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 // Lee la base al arrancar y arma los objetos del modelo. Reemplaza al seed que
-// antes hacia MainCU28: los constructores de Estado y Bolsin siguen
-// registrandose en sus listas, asi que Estado.getEstados() y
-// Bolsin.buscarBolsinesEnEstadoEnviadoParaCMEmpleado() funcionan igual que en
-// el diagrama de secuencia, ahora con los datos de la base.
+// antes hacia MainCU28: el constructor de Bolsin sigue registrandolo en su lista
+// estatica, asi que Bolsin.buscarBolsinesEnEstadoEnviadoParaCMEmpleado()
+// funciona igual que en el diagrama de secuencia, ahora con los datos de la base.
+// Cada Estado de la base se arma como su subclase concreta (patron State) y el
+// estado actual de bolsin, remito y documentacion se deja cargado en el objeto.
 public final class CargadorDeDatos {
 
     private CargadorDeDatos() {
@@ -46,8 +47,8 @@ public final class CargadorDeDatos {
             Map<Integer, Bolsin> bolsines = cargarBolsines(c, cms);
             Map<Integer, Remito> remitos = cargarRemitos(c, estados, bolsines);
             cargarDetallesRemito(c, remitos, documentaciones);
-            cargarCambiosEstadoBolsin(c, estados, bolsines);
-            cargarCambiosEstadoDocumentacion(c, estados, documentaciones);
+            cargarCambiosEstadoBolsin(c, estados, empleados, bolsines);
+            cargarCambiosEstadoDocumentacion(c, estados, empleados, documentaciones);
             return cargarSesionAbierta(c, usuarios);
         } catch (SQLException e) {
             throw new PersistenciaException("No se pudieron cargar los datos de la base: " + e.getMessage(), e);
@@ -75,9 +76,11 @@ public final class CargadorDeDatos {
              ResultSet rs = st.executeQuery(
                      "select id_estado, nombre, descripcion, ambito from estado order by id_estado")) {
             while (rs.next()) {
-                Estado e = new Estado(rs.getString("nombre"), rs.getString("descripcion"), rs.getString("ambito"));
-                e.setId(rs.getInt("id_estado"));
-                mapa.put(e.getId(), e);
+                Estado e = FabricaDeEstados.crear(rs.getString("ambito"), rs.getString("nombre"));
+                if (e != null) {
+                    e.setId(rs.getInt("id_estado"));
+                    mapa.put(e.getId(), e);
+                }
             }
         }
         return mapa;
@@ -172,7 +175,7 @@ public final class CargadorDeDatos {
                 r.setId(rs.getInt("id_remito"));
                 int idEstado = rs.getInt("id_estado");
                 if (!rs.wasNull()) {
-                    r.setEstado(estados.get(idEstado));
+                    r.setEstado(estadoRequerido(estados, idEstado));
                 }
                 int idBolsin = rs.getInt("id_bolsin");
                 if (!rs.wasNull()) {
@@ -198,32 +201,43 @@ public final class CargadorDeDatos {
     }
 
     private static void cargarCambiosEstadoBolsin(Connection c, Map<Integer, Estado> estados,
-            Map<Integer, Bolsin> bolsines) throws SQLException {
+            Map<Integer, Empleado> empleados, Map<Integer, Bolsin> bolsines) throws SQLException {
         try (Statement st = c.createStatement();
              ResultSet rs = st.executeQuery(
-                     "select id_cambio_estado_bolsin, id_bolsin, id_estado, fecha_hora_inicio, fecha_hora_fin "
+                     "select id_cambio_estado_bolsin, id_bolsin, id_estado, fecha_hora_inicio, fecha_hora_fin, id_empleado "
                              + "from cambio_estado_bolsin order by fecha_hora_inicio, id_cambio_estado_bolsin")) {
             while (rs.next()) {
-                CambioEstadoBolsin cambio = new CambioEstadoBolsin(estados.get(rs.getInt("id_estado")),
-                        fecha(rs, "fecha_hora_inicio"), fecha(rs, "fecha_hora_fin"));
+                Bolsin bolsin = bolsines.get(rs.getInt("id_bolsin"));
+                CambioEstadoBolsin cambio = new CambioEstadoBolsin(
+                        estadoRequerido(estados, rs.getInt("id_estado")),
+                        fecha(rs, "fecha_hora_inicio"), fecha(rs, "fecha_hora_fin"),
+                        responsable(rs, empleados));
                 cambio.setId(rs.getInt("id_cambio_estado_bolsin"));
-                bolsines.get(rs.getInt("id_bolsin")).agregarCambioEstado(cambio);
+                bolsin.agregarCambioEstado(cambio);
+                if (cambio.esActual()) {
+                    bolsin.setEstado(cambio.getEstado());
+                }
             }
         }
     }
 
     private static void cargarCambiosEstadoDocumentacion(Connection c, Map<Integer, Estado> estados,
-            Map<Integer, Documentacion> documentaciones) throws SQLException {
+            Map<Integer, Empleado> empleados, Map<Integer, Documentacion> documentaciones) throws SQLException {
         try (Statement st = c.createStatement();
              ResultSet rs = st.executeQuery(
-                     "select id_cambio_estado_doc, id_documentacion, id_estado, fecha_hora_inicio, fecha_hora_fin "
+                     "select id_cambio_estado_doc, id_documentacion, id_estado, fecha_hora_inicio, fecha_hora_fin, id_empleado "
                              + "from cambio_estado_documentacion order by fecha_hora_inicio, id_cambio_estado_doc")) {
             while (rs.next()) {
+                Documentacion documentacion = documentaciones.get(rs.getInt("id_documentacion"));
                 CambioEstadoDocumentacion cambio = new CambioEstadoDocumentacion(
-                        estados.get(rs.getInt("id_estado")),
-                        fecha(rs, "fecha_hora_inicio"), fecha(rs, "fecha_hora_fin"));
+                        estadoRequerido(estados, rs.getInt("id_estado")),
+                        fecha(rs, "fecha_hora_inicio"), fecha(rs, "fecha_hora_fin"),
+                        responsable(rs, empleados));
                 cambio.setId(rs.getInt("id_cambio_estado_doc"));
-                documentaciones.get(rs.getInt("id_documentacion")).agregarCambioEstado(cambio);
+                documentacion.agregarCambioEstado(cambio);
+                if (cambio.esActual()) {
+                    documentacion.setEstado(cambio.getEstado());
+                }
             }
         }
     }
@@ -238,6 +252,21 @@ public final class CargadorDeDatos {
             }
             return new Sesion(usuarios.get(rs.getInt("id_usuario")));
         }
+    }
+
+    // El estado de la base tiene que tener una clase concreta en el modelo.
+    private static Estado estadoRequerido(Map<Integer, Estado> estados, int idEstado) {
+        Estado estado = estados.get(idEstado);
+        if (estado == null) {
+            throw new PersistenciaException("El estado " + idEstado + " de la base no tiene clase en el modelo.");
+        }
+        return estado;
+    }
+
+    // id_empleado puede ser null (cambios anteriores a registrar el responsable).
+    private static Empleado responsable(ResultSet rs, Map<Integer, Empleado> empleados) throws SQLException {
+        int idEmpleado = rs.getInt("id_empleado");
+        return rs.wasNull() ? null : empleados.get(idEmpleado);
     }
 
     private static LocalDateTime fecha(ResultSet rs, String columna) throws SQLException {

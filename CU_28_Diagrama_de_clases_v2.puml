@@ -1,0 +1,268 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 90
+hide circle
+
+' CU28 - diagrama de clases con patron State (version actualizada).
+' Hay dos clases llamadas EnBolsinEnviado (Remito y Documentacion): son estados distintos;
+' se usan alias para que PlantUML no las fusione.
+
+class "GestorRecepciónDeBolsín" as Gestor <<control>> {
+  -empleadoLogueado: Empleado
+  -cmEmpleado: CM
+  -bolsines: Bolsin[]
+  -bolsinSeleccionado: Bolsin
+  -remitos: Remito[]
+  --
+  +registrarRecepcionDeBolsin(): void
+  +obtenerFechaActual(): DateTime
+}
+
+class "Bolsin" as Bolsin <<entity>> {
+  -numeroBolsin: Int
+  -numeroPrecinto: String
+  -fecha: Date
+  -peso: Float
+  -cambioEstadoActual: CambioEstadoBolsin
+  --
+  +buscarBolsinesEnEstadoEnviadoParaCMEmpleado(CMEmpleado: String): Bolsin[]  {static}
+  +esEstadoEnviado(): Boolean
+  +esCMDestino(CMEmpleado: String): Boolean
+  +getCMOrigen(): CM
+  +getNumeroPrecinto(): String
+  +buscarRemitos(): Remito[]
+  +getCambioEstadoActual(): CambioEstadoBolsin
+  +marcarRecibidoEnCMDestino(fechaActual: DateTime, empleado: Empleado)
+  +setEstado(estado: Estado)
+  +agregarCambioEstado(cambioEstado: CambioEstadoBolsin)
+}
+
+class "CM" as CM <<entity>> {
+  -codigo: String
+  -nombre: String
+  --
+  +getNombre(): String
+}
+
+class "Empleado" as Empleado <<entity>> {
+  -nombre: String
+  -apellido: String
+  -email: String
+  --
+  +getCM(): CM
+}
+
+class "CambioEstadoBolsín" as CEB <<entity>> {
+  -fechaHoraInicio: DateTime
+  -fechaHoraFin: DateTime
+  --
+  +esActual(): Boolean
+  +esEnviado(): Boolean
+  +setFechaHoraFin(fechaActual: DateTime)
+  +new(fechaActual: DateTime, estado: Estado, empleado: Empleado)
+}
+
+class "CambioEstadoDocumentación" as CED <<entity>> {
+  -fechaHoraInicio: DateTime
+  -fechaHoraFin: DateTime
+  --
+  +esActual(): Boolean
+  +setFechaHoraFin(fechaActual: DateTime)
+  +new(fechaActual: DateTime, estado: Estado, empleado: Empleado)
+}
+
+class "Remito" as Remito <<entity>> {
+  -numero: Int
+  -fecha: Date
+  --
+  +getNumero(): Int
+  +obtenerDatosDocumentacion(): DetalleRemito[]
+  +marcarRecibidoyAceptado(fechaActual: DateTime, empleado: Empleado)
+  +setEstado(estado: Estado)
+}
+
+class "DetalleRemito" as Detalle <<entity>> {
+  -areaCMCDestino: String
+  --
+  +obtenerDatosDocumentacion(): Documentacion
+  +marcarRecibidayAceptadaDocumentacion(fechaActual: DateTime, empleado: Empleado)
+}
+
+class "Documentación" as Doc <<entity>> {
+  -numero: Int
+  -asunto: String
+  -fechaPase: Date
+  --
+  +getAsunto(): String
+  +getTipo(): TipoDocumentacion
+  +setEstado(estado: Estado)
+  +agregarCambioEstado(cambioEstado: CambioEstadoDocumentacion)
+  +marcarRecibidayAceptada(fechaActual: DateTime, empleado: Empleado)
+  +marcarRecibidayRechazada(fechaActual: DateTime, empleado: Empleado)
+  +marcarNoRecibida(fechaActual: DateTime, empleado: Empleado)
+  +redirigir(fechaActual: DateTime, empleado: Empleado)
+  +reenviar(fechaActual: DateTime, empleado: Empleado)
+  +darDeBaja(fechaActual: DateTime, empleado: Empleado)
+  +incluirEnRemito(fechaActual: DateTime, empleado: Empleado)
+  +quitarDeRemito(fechaActual: DateTime, empleado: Empleado)
+  +incluirEnBolsin(fechaActual: DateTime, empleado: Empleado)
+  +quitarDeBolsin(fechaActual: DateTime, empleado: Empleado)
+  +retirar(fechaActual: DateTime, empleado: Empleado)
+}
+
+class "TipoDocumentación" as Tipo <<entity>> {
+  -nombre: String
+  -descripcion: String
+  --
+  +getNombre(): String
+}
+
+abstract class "Estado" as Estado <<abstract>> {
+  -nombre: String
+  -descripcion: String
+  -ambito: String
+  --
+  +esEnviado(): Boolean
+  +incluirEnRemito(documentacion, fechaActual, empleado, historiales)
+  +quitarDeRemito(documentacion, fechaActual, empleado, historiales)
+  +reenviar(documentacion, fechaActual, empleado, historiales)
+  +incluirEnBolsin(documentacion, fechaActual, empleado, historiales)
+  +quitarDeBolsin(documentacion, fechaActual, empleado, historiales)
+  +retirar(documentacion, fechaActual, empleado, historiales)
+  +marcarRecibidayAceptada(documentacion, fechaActual, empleado, historiales)
+  +marcarRecibidayRechazada(documentacion, fechaActual, empleado, historiales)
+  +marcarNoRecibida(documentacion, fechaActual, empleado, historiales)
+  +redirigir(documentacion, fechaActual, empleado, historiales)
+  +darDeBaja(documentacion, fechaActual, empleado, historiales)
+  +marcarRecibidoEnCMDestino(bolsin: Bolsin, fechaActual: DateTime, empleado: Empleado)
+  +marcarRecibidoyAceptado(remito: Remito, fechaActual: DateTime, empleado: Empleado)
+  #cambiarEstadoDocumentacion(documentacion, nuevoEstado: Estado, fechaActual, empleado, historiales)
+}
+
+class "Registrada" as Registrada <<entity>> {
+  --
+  +new()
+  +incluirEnRemito(...)
+}
+
+class "EnRemito" as EnRemito <<entity>> {
+  --
+  +new()
+  +incluirEnBolsin(...)
+  +quitarDeRemito(...)
+}
+
+class "EnBolsinSaliente" as EnBolsinSaliente <<entity>> {
+  --
+  +new()
+  +quitarDeBolsin(...)
+  +retirar(...)
+}
+
+class "NoRecibida" as NoRecibida <<entity>> {
+  --
+  +new()
+  +reenviar(...)
+  +darDeBaja(...)
+}
+
+class "RecibidaYRechazada" as RecibidaYRechazada <<entity>> {
+  --
+  +new()
+  +reenviar(...)
+}
+
+class "ParaRedirigir" as ParaRedirigir <<entity>> {
+  --
+  +new()
+  +marcarRecibidayRechazada(...)
+  +marcarRecibidayAceptada(...)
+}
+
+class "RecibidayAceptada" as RecibidayAceptada <<entity>> {
+  --
+  +new()
+}
+
+class "RecibidoyAceptado" as RecibidoyAceptado <<entity>> {
+  --
+  +new()
+}
+
+class "RecibidoEnCMDestino" as RecibidoEnCMDestino <<entity>> {
+  --
+  +new()
+}
+
+class "DeBaja" as DeBaja <<entity>> {
+  --
+  +new()
+}
+
+class "Enviado" as Enviado <<entity>> {
+  --
+  +new()
+  +esEnviado(): Boolean
+  +marcarRecibidoEnCMDestino(bolsin: Bolsin, fechaActual: DateTime, empleado: Empleado)
+  +marcarRecibidoyAceptadoRemito(bolsin: Bolsin, fechaActual: DateTime, empleado: Empleado)
+  +crearEstado(): Estado
+  +crearCambioEstado(fechaActual: DateTime, estado: Estado, empleado: Empleado): CambioEstadoBolsin
+}
+
+class "EnBolsinEnviado (estado del Remito)" as EBERemito <<entity>> {
+  --
+  +new()
+  +marcarRecibidoyAceptado(remito: Remito, fechaActual: DateTime, empleado: Empleado)
+  +marcarRecibidayAceptadaDocumentacion(remito: Remito, fechaActual: DateTime, empleado: Empleado)
+  +crearEstado(): Estado
+}
+
+class "EnBolsinEnviado (estado de la Documentación)" as EBEDoc <<entity>> {
+  --
+  +new()
+  +marcarRecibidayAceptada(documentacion, fechaActual, empleado, historiales)
+  +marcarNoRecibida(documentacion, fechaActual, empleado, historiales)
+  +marcarRecibidayRechazada(documentacion, fechaActual, empleado, historiales)
+  +redirigir(documentacion, fechaActual, empleado, historiales)
+  +buscarHistorial(fechaActual: DateTime, historiales: CambioEstadoDocumentacion[]): CambioEstadoDocumentacion
+  +crearEstado(): Estado
+  +crearCambioEstado(fechaActual: DateTime, estado: Estado, empleado: Empleado): CambioEstadoDocumentacion
+}
+
+' ===================== Relaciones =====================
+Gestor ..> Bolsin
+Bolsin o--> "1..*" Remito : remito
+Bolsin --> "1..*" CEB : cambioEstadoBolsin
+Bolsin --> "1" Estado : estado
+Bolsin --> "1" CM : cmOrigen
+Bolsin --> "1" CM : cmDestino
+Remito o--> "1..*" Detalle : detalleRemito
+Remito --> "1" Estado : estado
+Detalle --> "1" Doc : documentacion
+Doc --> "1..*" CED : cambioEstadoDocumentacion
+Doc --> "1" Estado : estado
+Doc --> "1" Tipo : tipoDocumentacion
+CEB --> "1" Estado : estado
+CED --> "1" Estado : estado
+CEB --> "0..1" Empleado : responsable
+CED --> "0..1" Empleado : responsable
+Empleado --> "1" CM : cm
+
+' ===================== Herencia de Estado =====================
+Estado <|-- Registrada
+Estado <|-- EnRemito
+Estado <|-- EnBolsinSaliente
+Estado <|-- NoRecibida
+Estado <|-- RecibidaYRechazada
+Estado <|-- ParaRedirigir
+Estado <|-- RecibidayAceptada
+Estado <|-- RecibidoyAceptado
+Estado <|-- RecibidoEnCMDestino
+Estado <|-- DeBaja
+Estado <|-- Enviado
+Estado <|-- EBERemito
+Estado <|-- EBEDoc
+
+@enduml

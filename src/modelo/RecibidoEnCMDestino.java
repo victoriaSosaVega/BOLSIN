@@ -1,21 +1,9 @@
 package modelo;
 
-/** Estado concreto que el CU28 crea al registrar la recepción correcta. */
+/** El bolsin ya fue recibido en la CM destino. No admite mas transiciones en el CU28. */
 public final class RecibidoEnCMDestino extends Estado {
 
     public RecibidoEnCMDestino() {
-        this(buscarEstadoExistente());
-    }
-
-    private RecibidoEnCMDestino(Estado estadoExistente) {
-        super(estadoExistente.getNombre(), estadoExistente.getDescripcion(), RecibidoEnCMDestino.AMBITO_BOLSIN, false);
-        setId(estadoExistente.getId());
-    }
-
-    private static Estado buscarEstadoExistente() {
-        return Estado.getEstados().stream()
-                .filter(estado -> estado.esAmbitoBolsin() && estado.esRecibidoEnCMDestino())
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No existe el estado Recibido en CM Destino"));
+        super("Recibido en CM Destino", "Bolsin recibido en CM destino", AMBITO_BOLSIN);
     }
 }

@@ -1,46 +1,44 @@
 package modelo;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-/** Estado del bolsín que ejecuta el evento de recepción indicado por CU28. */
+/** Estado del bolsin que ejecuta el evento de recepcion del CU28. */
 public final class Enviado extends Estado {
 
-    private final Bolsin bolsin;
-
-    public Enviado(Bolsin bolsin) {
-        this(bolsin, buscarEstadoExistente());
+    public Enviado() {
+        super("Enviado", "Bolsin enviado por CM origen", AMBITO_BOLSIN);
     }
 
-    private Enviado(Bolsin bolsin, Estado estado) {
-        super(estado.getNombre(), estado.getDescripcion(), AMBITO_BOLSIN, false);
-        this.bolsin = bolsin;
-        setId(estado.getId());
+    @Override
+    public boolean esEnviado() {
+        return true;
     }
 
-    private static Estado buscarEstadoExistente() {
-        return Estado.getEstados().stream()
-                .filter(estado -> estado.esAmbitoBolsin() && estado.esEnviado())
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No existe el estado Enviado"));
-    }
+    @Override
+    public void marcarRecibidoEnCMDestino(Bolsin bolsin, LocalDateTime fechaActual, Empleado empleado) {
+        // El cambio de estado vigente es el que se encontro al buscar los bolsines en estado Enviado.
+        CambioEstadoBolsin actual = bolsin.getCambioEstadoActual();
+        actual.setFechaHoraFin(fechaActual);
 
-    public void marcarRecibidoEnCMDestino(Bolsin bolsin, LocalDateTime fechaActual,
-                                           Empleado empleado, List<CambioEstadoBolsin> historiales) {
-        CambioEstadoBolsin actual = bolsin.buscarHistorial(fechaActual, historiales);
-        if (actual != null && actual.esActual()) {
-            actual.setFechaHoraFin(fechaActual);
-        }
-        marcarRecibidoyAceptadoRemito(fechaActual);
-    }
+        marcarRecibidoyAceptadoRemito(bolsin, fechaActual, empleado);
 
-    private void marcarRecibidoyAceptadoRemito(LocalDateTime fechaActual) {
-        for (Remito remito : bolsin.buscarRemitos()) {
-            remito.marcarRecibidoyAceptado(fechaActual);
-        }
-        Estado estadoActualizado = new RecibidoEnCMDestino();
-        CambioEstadoBolsin nuevo = new CambioEstadoBolsin(fechaActual, estadoActualizado);
-        nuevo.setEstado(estadoActualizado);
+        Estado recibidoEnCMDestino = crearEstado();
+        CambioEstadoBolsin nuevo = crearCambioEstado(fechaActual, recibidoEnCMDestino, empleado);
+        bolsin.setEstado(recibidoEnCMDestino);
         bolsin.agregarCambioEstado(nuevo);
+    }
+
+    public void marcarRecibidoyAceptadoRemito(Bolsin bolsin, LocalDateTime fechaActual, Empleado empleado) {
+        for (Remito remito : bolsin.buscarRemitos()) {
+            remito.marcarRecibidoyAceptado(fechaActual, empleado);
+        }
+    }
+
+    public Estado crearEstado() {
+        return new RecibidoEnCMDestino();
+    }
+
+    public CambioEstadoBolsin crearCambioEstado(LocalDateTime fechaActual, Estado estado, Empleado empleado) {
+        return new CambioEstadoBolsin(fechaActual, estado, empleado);
     }
 }
