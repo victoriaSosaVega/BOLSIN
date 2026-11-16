@@ -1,6 +1,7 @@
 package modelo;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,14 +47,16 @@ public class Remito {
         return estado;
     }
 
-    public void marcarRecibidoyAceptado(Estado estadoRemito, Estado estadoDocumentacion, Empleado responsable) {
-        setEstado(estadoRemito);
-        for (DetalleRemito detalle : detalleRemito) {
-            marcarRecibidayAceptadaDocumentacion(detalle, estadoDocumentacion, responsable);
-        }
+    // Remito cambia de estado sin patron State: se asigna el estado que le pasa el
+    // Gestor y despues marca la documentacion de cada detalle.
+    public void marcarRecibidoyAceptado(LocalDateTime fechaActual, Empleado empleado, Estado estadoRecibidoyAceptado) {
+        setEstado(estadoRecibidoyAceptado);
+        marcarRecibidayAceptadaDocumentacion(fechaActual, empleado);
     }
 
-    public void marcarRecibidayAceptadaDocumentacion(DetalleRemito detalle, Estado estadoDocumentacion, Empleado responsable) {
-        detalle.marcarRecibidayAceptadaDocumentacion(estadoDocumentacion, responsable);
+    private void marcarRecibidayAceptadaDocumentacion(LocalDateTime fechaActual, Empleado empleado) {
+        for (DetalleRemito detalle : detalleRemito) {
+            detalle.marcarRecibidayAceptadaDocumentacion(fechaActual, empleado);
+        }
     }
 }

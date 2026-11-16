@@ -3,27 +3,41 @@ package modelo;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Estado simple (sin patron State): lo usan el Bolsin y el Remito, cuyos estados
+ * se registran en el historial o en el propio objeto y no cambian el comportamiento.
+ * El patron State se aplica solo a la Documentacion (ver EstadoDocumentacion).
+ */
 public class Estado {
 
     public static final String AMBITO_BOLSIN = "Bolsin";
     public static final String AMBITO_REMITO = "Remito";
     public static final String AMBITO_DOCUMENTACION = "Documentacion";
 
-    // "Persistencia" simulada: todo Estado creado queda registrado acá,
-    // así el Gestor puede buscarlo por ámbito + condición (Polimorfismo/Experto).
-    private static List<Estado> estados = new ArrayList<>();
+    // "Persistencia" simulada: todo Estado simple creado (por la carga desde la base)
+    // queda registrado aca, asi el Gestor puede buscarlo por ambito + condicion.
+    private static final List<Estado> estados = new ArrayList<>();
 
     // Clave de la tabla estado (solo para persistencia; no forma parte del diagrama).
+    // Los estados de documentacion creados por crearEstado() no la tienen: se resuelve
+    // por nombre y ambito al guardar.
     private Integer id;
-    private String nombre;
-    private String descripcion;
-    private String ambito;
+    private final String nombre;
+    private final String descripcion;
+    private final String ambito;
 
     public Estado(String nombre, String descripcion, String ambito) {
+        this(nombre, descripcion, ambito, true);
+    }
+
+    // Las subclases (EstadoDocumentacion) no se registran: se crean al cambiar de estado.
+    protected Estado(String nombre, String descripcion, String ambito, boolean registrar) {
         this.nombre = nombre;
         this.descripcion = descripcion;
         this.ambito = ambito;
-        estados.add(this);
+        if (registrar) {
+            estados.add(this);
+        }
     }
 
     public Integer getId() {
@@ -42,6 +56,10 @@ public class Estado {
         return descripcion;
     }
 
+    public String getAmbito() {
+        return ambito;
+    }
+
     public boolean esAmbitoBolsin() {
         return AMBITO_BOLSIN.equals(ambito);
     }
@@ -50,12 +68,8 @@ public class Estado {
         return AMBITO_REMITO.equals(ambito);
     }
 
-    public boolean esAmbitoDocumentacion() {
-        return AMBITO_DOCUMENTACION.equals(ambito);
-    }
-
     public boolean esEnviado() {
-        return "Enviado".equals(nombre);
+        return esAmbitoBolsin() && "Enviado".equals(nombre);
     }
 
     public boolean esRecibidoEnCMDestino() {
@@ -66,26 +80,7 @@ public class Estado {
         return "Recibido y Aceptado".equals(nombre);
     }
 
-    public boolean esRecibidayAceptada() {
-        return "Recibida y Aceptada".equals(nombre);
-    }
-
-    public boolean esRecibidayRechazada() {
-        return "Recibida y Rechazada".equals(nombre);
-    }
-
-    public boolean esNoRecibida() {
-        return "No Recibida".equals(nombre);
-    }
-
-    public boolean esRecibidoyAceptadoParcial() {
-        return "Recibido y Aceptado Parcial".equals(nombre);
-    }
-
-    public boolean esParaRedirigir() {
-        return "Para Redirigir".equals(nombre);
-    }
-
+    // Lista de estados simples cargados: el Gestor la recorre para buscar los que necesita.
     public static List<Estado> getEstados() {
         return estados;
     }

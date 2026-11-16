@@ -1,5 +1,7 @@
 package modelo;
 
+import java.time.LocalDateTime;
+
 public class DetalleRemito {
 
     private String areaCMDestino;
@@ -14,7 +16,7 @@ public class DetalleRemito {
         return documentacion;
     }
 
-    public void marcarRecibidayAceptadaDocumentacion(Estado estadoDocumentacion, Empleado responsable) {
-        documentacion.marcarRecibidayAceptada(estadoDocumentacion, responsable);
+    public void marcarRecibidayAceptadaDocumentacion(LocalDateTime fechaActual, Empleado empleado) {
+        documentacion.marcarRecibidayAceptada(fechaActual, empleado);
     }
 }

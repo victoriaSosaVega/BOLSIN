@@ -1,8 +1,18 @@
 # CU28 - Registrar Recepción de Bolsín
 
 Implementación en Java del CU28 del PPAI "Bolsines" (UTN DSI), siguiendo el
-diagrama de clases y el diagrama de secuencia ya corregidos, con una interfaz
-gráfica (Swing) para que el Encargado de Bolsines (EB) lo pruebe interactivamente.
+diagrama de clases (con el **patrón State aplicado solo a la Documentación**) y
+el diagrama de secuencia de dos páginas (`PPAI Realización CU 28 - Codigo.drawio`), con una interfaz gráfica
+(Swing) para que el Encargado de Bolsines (EB) lo pruebe interactivamente.
+
+Dónde está cada cosa:
+
+| Documento | Para qué |
+|---|---|
+| `CU_28_Diagrama_de_clases_v2.png` (`.drawio`, `.puml`) | Diagrama de clases vigente |
+| `PPAI Realización CU 28 - Codigo.drawio` | Diagrama de secuencia (2 páginas) |
+| [`docs/Cambios_CU28_Patron_State.pdf`](docs/Cambios_CU28_Patron_State.pdf) | Qué se cambió y en qué concuerda con cada diagrama |
+| `2026 DSI Bolsines ERS V1-2.pdf` | ERS (CU28: Registrar recepción de bolsín) |
 
 ## Cómo correrlo
 
@@ -11,7 +21,15 @@ Java 8 no corre) y el driver JDBC de Postgres en `lib/postgresql.jar`
 (`postgresql-42.7.4`, de Maven Central; no se versiona en git).
 
 1. **Datos de prueba:** correr una sola vez `db/seed_cu28.sql` en el SQL Editor
-   de Supabase, sobre las tablas vacías.
+   de Supabase, sobre las tablas vacías, y después `db/migracion_state.sql`
+   (agrega el responsable a los historiales de estado, los estados que faltaban
+   y deja un estado inicial en remitos y documentación). La migración es
+   repetible y **hay que correrla antes de abrir la app**: sin ella, la documentación
+   no tiene estado (el State delega en él) y el CU28 corta con un mensaje que lo
+   indica. Para volver a probar el CU28 sobre los mismos bolsines, correr
+   `db/reiniciar_demo_cu28.sql` (una documentación ya recibida no admite otra
+   recepción; `db/restore_demo_statuses.sql` solo restaura el bolsín y ya no
+   alcanza).
 2. **Conexión:** copiar `.env.example` como `.env` en la raíz del proyecto y
    completar los tres valores con los datos de Supabase (botón *Connect* del
    proyecto, método *Session pooler*). El `.env` está en `.gitignore`: no se
@@ -49,24 +67,75 @@ uso del ERS que no se implementaron acá). Al elegirla arranca el CU28.
 
 ```
 src/
-  modelo/    Entidades: CM, Empleado, Usuario, Sesion, Estado,
-             CambioEstadoBolsin, CambioEstadoDocumentacion, TipoDocumentacion,
-             Documentacion, DetalleRemito, Remito, Bolsin
+  modelo/    Entidades: CM, Empleado, Usuario, Sesion, CambioEstadoBolsin,
+             CambioEstadoDocumentacion, TipoDocumentacion, Documentacion,
+             DetalleRemito, Remito, Bolsin
+             Estado (clase simple: estados de Bolsin y Remito)
+             Patron State (solo Documentacion): EstadoDocumentacion
+             (abstracta, hereda de Estado) y sus subclases Registrada,
+             EnRemito, EnBolsinSaliente, EnBolsinEnviado, RecibidayAceptada,
+             RecibidaYRechazada, NoRecibida, ParaRedirigir, DeBaja
   control/   GestorRecepcionDeBolsin (el "cerebro" del CU28)
   boundary/  PantallaPrincipalEncargadoBolsines, PantallaRecepcionDeBolsin,
              PantallaNotificacionRecepcionBolsin
-  persistencia/  Conexion, CargadorDeDatos, RepositorioRecepcion (JDBC)
+  persistencia/  Conexion, CargadorDeDatos, FabricaDeEstados, RepositorioRecepcion (JDBC)
   app/       MainCU28 (carga los datos de la base y arranca la ventana)
-db/          seed_cu28.sql (datos de prueba)
+db/          seed_cu28.sql (datos de prueba), migracion_state.sql,
+             reiniciar_demo_cu28.sql
 ```
 
-Los datos viven en una base Postgres (Supabase), accedida con JDBC puro. El
-diagrama de secuencia del CU28 no cambia: al arrancar, `CargadorDeDatos` lee
-las tablas y arma los objetos del modelo (las listas estáticas de `Bolsin` y
-`Estado` se llenan desde la base), y el flujo sigue operando en memoria tal
-cual el diagrama. Al confirmar, `GestorRecepcionDeBolsin.guardarCambios()`
+## Patrón State (solo en Documentación)
+
+`EstadoDocumentacion` es abstracta (hereda de `Estado`) y cada estado concreto de una
+documentación es una subclase que implementa solo las transiciones que permite;
+cualquier otra lanza `IllegalStateException`. `Documentacion` tiene un atributo
+`estado` y **delega** en él (`estado.marcarRecibidayAceptada(this, …)`); el estado crea
+el estado siguiente con `crearEstado()` y registra el cambio en el historial
+(`CambioEstadoDocumentacion`). Los estados no guardan referencia a la documentación:
+la reciben por parámetro.
+
+`Bolsin` y `Remito` **no usan State**: su estado es un `Estado` simple (nombre,
+descripción, ámbito). El bolsín cierra su `CambioEstadoBolsin` vigente y crea el
+siguiente; el remito se asigna el estado *Recibido y Aceptado* y marca su
+documentación. Como en el diagrama de secuencia original (sin patrón), el Gestor
+busca esos dos estados recorriendo `Estado.getEstados()` y se los pasa a
+`Bolsin.marcarRecibidoEnCMDestino(...)` y, de ahí, a cada `Remito`. El estado de la
+documentación no se busca: lo crea el State.
+
+| Estado de Documentación | Transiciones → siguiente estado |
+|---|---|
+| `Registrada` | `incluirEnRemito` → `EnRemito` |
+| `EnRemito` | `incluirEnBolsin` → `EnBolsinSaliente`; `quitarDeRemito` → `Registrada` |
+| `EnBolsinSaliente` | `quitarDeBolsin` → `EnRemito`; `retirar` → `EnBolsinEnviado` |
+| `EnBolsinEnviado` | `marcarRecibidayAceptada` → `RecibidayAceptada` **(CU28)**; `marcarNoRecibida` → `NoRecibida`; `marcarRecibidayRechazada` → `RecibidaYRechazada`; `redirigir` → `ParaRedirigir` |
+| `NoRecibida` | `reenviar` → `Registrada`; `darDeBaja` → `DeBaja` |
+| `RecibidaYRechazada` | `reenviar` → `Registrada` |
+| `ParaRedirigir` | `marcarRecibidayRechazada` → `RecibidaYRechazada`; `marcarRecibidayAceptada` → `RecibidayAceptada` |
+| `RecibidayAceptada`, `DeBaja` | finales |
+
+Las transiciones que no son del CU28 las usan otros casos de uso del ERS; la
+pantalla del CU28 no las ofrece.
+
+**Empleado responsable.** El ERS (CU28, paso 11) pide registrar el empleado
+responsable del cambio de bolsín y de documentación. El `empleadoLogueado` del
+Gestor viaja por `Bolsin` → `Remito` → `DetalleRemito` →
+`Documentacion` → `EnBolsinEnviado` y queda guardado en `CambioEstadoBolsin` y
+`CambioEstadoDocumentacion` (columna `id_empleado`; null en los cambios
+anteriores a la migración).
+
+## Datos y persistencia
+
+Los datos viven en una base Postgres (Supabase), accedida con JDBC puro. Al
+arrancar, `CargadorDeDatos` lee
+las tablas y arma los objetos del modelo (la lista estática de `Bolsin` se llena
+desde la base; cada fila de `estado` se arma con `FabricaDeEstados`: un `Estado`
+simple para Bolsín y Remito, la subclase concreta de `EstadoDocumentacion` para
+Documentación). El flujo sigue operando en memoria tal cual el diagrama de
+secuencia. Al confirmar, `GestorRecepcionDeBolsin.guardarCambios()`
 guarda en una sola transacción los cambios que dejó el CU (nuevos
-`CambioEstado`, cierre de los anteriores y estado de cada remito). Esa llamada
+`CambioEstado` con su empleado responsable, cierre de los anteriores y estado
+de cada remito). Los estados creados por `crearEstado()` no traen el id de la
+base: se resuelve por nombre y ámbito al guardar. Esa llamada
 es infraestructura: no es un mensaje del diagrama de secuencia. Si el guardado
 falla, el CU se corta (no se notifica a la CM origen) y la pantalla muestra el
 error; como los objetos en memoria ya habían cambiado, hay que reiniciar la app.
@@ -80,51 +149,27 @@ no las usa y el seed las completa.
 Las columnas `timestamp` no guardan zona horaria. Java escribe la hora local,
 por eso el seed también usa hora argentina.
 
-## Qué hace el flujo (paso a paso)
+## Flujo implementado según el diagrama de secuencia
 
-1. El EB elige "Registrar recepción de bolsín".
-2. El sistema busca y muestra la CM del usuario logueado (pantalla propia,
-   antes de mostrar nada más — así lo pide el CU).
-3. El sistema busca los bolsines en estado **Enviado** para esa CM y los
-   lista (con su CM origen y número de precinto) para que el EB elija uno.
-4. Al elegir un bolsín, se muestran sus remitos con el asunto y tipo de cada
-   documentación.
-5. El sistema presenta las 4 opciones de recepción y el EB elige una.
-6. Según la opción, puede pedir que el EB tilde documentación puntual
-   (ver más abajo).
-7. Se pide confirmación final (sí/no).
-8. Si confirma, se actualizan los estados correspondientes y se notifica a la
-   CM origen (esto simula el CU29, incluido acá, que en la vida real sería un
-   mail y no una pantalla).
-9. Se informa que el caso de uso terminó con éxito.
+1. El EB inicia “Registrar recepción de bolsín”.
+2. El gestor obtiene el empleado de la sesión y la pantalla muestra su CM.
+3. Se buscan los bolsines en estado **Enviado** cuyo destino sea esa CM.
+4. El EB selecciona un bolsín y la pantalla muestra sus remitos, asuntos y tipos
+   de documentación.
+5. Para el flujo dibujado, el contenido coincide con lo registrado; el EB
+   confirma la recepción.
+6. El Gestor busca los estados *Recibido en CM Destino* (bolsín) y *Recibido y
+   Aceptado* (remito). El sistema obtiene una única fecha y hora y actualiza el bolsín a
+   **Recibido en CM Destino**, cada remito a **Recibido y Aceptado** y cada
+   documento a **Recibida y Aceptada**, registrando el empleado responsable en
+   el bolsín y en la documentación. El bolsín cierra su cambio de estado vigente
+   y crea el siguiente; la documentación lo hace su estado `EnBolsinEnviado`
+   (`crearEstado`, `crearCambioEstado`, `setEstado`, `agregarCambioEstado`).
+7. Se llama al CU29 para notificar a la CM de origen y finaliza el CU28.
 
-## Las 4 opciones de recepción (y qué hace cada una)
-
-Cuando el EB revisa el contenido real del bolsín contra lo que el sistema
-tiene registrado, puede pasar una de estas 4 cosas (están explicadas en la
-regla de negocio **"Recepción de un Bolsín en una CM Destino"** del ERS):
-
-| # | Situación | Qué hace el sistema |
-|---|-----------|----------------------|
-| 1 | El contenido es igual al registrado | Todo (bolsín, remitos y documentación) pasa a **Recibido/a y Aceptado/a**. Es el caso normal, sin nada raro. |
-| 2 | No llegó toda la documentación | El EB tilda qué documentos faltaron. Esos quedan **No Recibida**; el resto, **Recibida y Aceptada**. El remito queda en un estado intermedio: **Recibido y Aceptado Parcial** (porque le faltó algo). |
-| 3 | Hay documentación que no es para esta CM | El EB tilda cuáles no corresponden. Esos quedan **Recibida y Rechazada** (hay que devolverlos al origen); el resto se acepta normal. |
-| 4 | Hay documentación que hay que mandar a otra área (solo aplica si esta CM es la CMC, la central) | El EB tilda cuáles hay que redirigir. Esos quedan **Para Redirigir**; el resto se acepta normal. |
-
-En todos los casos el **bolsín** siempre pasa a **Recibido en CM Destino**
-(eso pasa siempre, sea cual sea la situación de la documentación).
-
-Importante: en las opciones 2 y 3, lo que pasa **después** con esa
-documentación problemática (que alguien la reenvíe a un remito nuevo, o la dé
-de baja) es tarea de **otro** caso de uso (CU31, "Registrar Revisión de
-Documentación"), que no está implementado acá — CU28 solo la deja marcada en
-el estado que corresponde.
-
-## El EB puede cancelar en cualquier momento
-
-Como pide una de las observaciones del CU, agregamos un botón **"Cancelar
-CU"** en cada pantalla intermedia. Si se usa, no se cambia ningún estado y
-se corta ahí nomás.
+La implementación sigue este recorrido principal del diagrama. Las variantes
+A3/A4/A5 y la cancelación no forman parte de esta secuencia y no se ofrecen en
+esta pantalla.
 
 ## Qué NO está implementado (a propósito)
 
@@ -139,8 +184,18 @@ usuario logueado, sin filtro adicional por precinto o CM origen.
 
 ## Notas de diseño
 
-- El texto de la opción 3 muestra el nombre real de la CM del usuario
-  logueado (ej: "no corresponde al destino CM Villa Maria"), no un texto fijo.
 - `PantallaNotificacionRecepcionBolsin` simula el envío de un mail a la CM
   origen (en la vida real sería una integración con un servidor de correo,
   no una pantalla que ve un usuario — así lo dice el ERS para el CU29).
+
+## Estado de la verificación
+
+- **Verificado:** compila (JDK 17+); el modelo se probó en memoria (flujo del
+  CU28 y todas las transiciones de documentación); `db/migracion_state.sql` se
+  corrió en Supabase y dejó remitos y documentación en *En Bolsin Enviado*.
+- **Sin verificar:** la app completa contra Supabase (`CargadorDeDatos` y
+  `RepositorioRecepcion` cambiaron), `db/reiniciar_demo_cu28.sql`, y el
+  `.puml` renderizado con PlantUML.
+- **Pendiente:** abrir los `.drawio` en draw.io y acomodar lo que haga falta (la
+  página 2 del diagrama de secuencia se regeneró; la revisé con una vista previa
+  propia, no en draw.io).

@@ -1,6 +1,7 @@
 package modelo;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +13,7 @@ public class Documentacion {
     private String asunto;
     private LocalDate fechaPase;
     private TipoDocumentacion tipoDocumentacion;
+    private EstadoDocumentacion estado;
     private List<CambioEstadoDocumentacion> cambiosEstado = new ArrayList<>();
 
     public Documentacion(int numero, String asunto, LocalDate fechaPase, TipoDocumentacion tipoDocumentacion) {
@@ -42,6 +44,14 @@ public class Documentacion {
         return tipoDocumentacion;
     }
 
+    public void setEstado(EstadoDocumentacion estado) {
+        this.estado = estado;
+    }
+
+    public EstadoDocumentacion getEstado() {
+        return estado;
+    }
+
     public CambioEstadoDocumentacion getCambioEstadoActual() {
         for (CambioEstadoDocumentacion c : cambiosEstado) {
             if (c.esActual()) {
@@ -55,70 +65,58 @@ public class Documentacion {
         cambiosEstado.add(cambio);
     }
 
-    private CambioEstadoDocumentacion crearCambioEstado(Estado estado, Empleado responsable) {
-        return new CambioEstadoDocumentacion(estado, responsable);
+    // --- Transiciones: la documentacion delega en su estado actual ---
+
+    public void marcarRecibidayAceptada(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().marcarRecibidayAceptada(this, fechaActual, empleado, cambiosEstado);
     }
 
-    private void cambiarEstado(Estado nuevoEstado, Empleado responsable) {
-        CambioEstadoDocumentacion actual = getCambioEstadoActual();
-        if (actual != null) {
-            actual.setFechaFin();
+    public void marcarRecibidayRechazada(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().marcarRecibidayRechazada(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void marcarNoRecibida(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().marcarNoRecibida(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void redirigir(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().redirigir(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void reenviar(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().reenviar(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void darDeBaja(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().darDeBaja(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    // Usadas por otros casos de uso (generar/modificar remito y bolsin, registrar retiro).
+    public void incluirEnRemito(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().incluirEnRemito(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void quitarDeRemito(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().quitarDeRemito(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void incluirEnBolsin(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().incluirEnBolsin(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void quitarDeBolsin(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().quitarDeBolsin(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    public void retirar(LocalDateTime fechaActual, Empleado empleado) {
+        estadoActual().retirar(this, fechaActual, empleado, cambiosEstado);
+    }
+
+    private EstadoDocumentacion estadoActual() {
+        if (estado == null) {
+            throw new IllegalStateException("La documentacion '" + asunto
+                    + "' no tiene estado en la base: correr db/migracion_state.sql");
         }
-        agregarCambioEstado(crearCambioEstado(nuevoEstado, responsable));
-    }
-
-    // --- CU28, opción 1: contenido del bolsín igual al registrado ---
-    public void marcarRecibidayAceptada(Estado nuevoEstado, Empleado responsable) {
-        cambiarEstado(nuevoEstado, responsable);
-    }
-
-    // --- CU28, alt. A3: no se recibió toda la documentación del bolsín ---
-    public void marcarNoRecibida(Estado nuevoEstado, Empleado responsable) {
-        cambiarEstado(nuevoEstado, responsable);
-    }
-
-    // --- CU28, alt. A4: documentación que no corresponde a la CM destino ---
-    public void marcarRecibidayRechazada(Estado nuevoEstado, Empleado responsable) {
-        cambiarEstado(nuevoEstado, responsable);
-    }
-
-    // --- CU28, alt. A5: documentación a redirigir a otra área (CMC) ---
-    public void redirigir(Estado nuevoEstado, Empleado responsable) {
-        cambiarEstado(nuevoEstado, responsable);
-    }
-
-    // --- CU31 Registrar Revisión de Documentación: vuelve a estado Registrada
-    // para poder vincularse a un nuevo remito ---
-    public void reenviar(Estado estadoRegistrada, Empleado responsable) {
-        cambiarEstado(estadoRegistrada, responsable);
-    }
-
-    // --- CU31: se considera que ya no es relevante su envío ---
-    public void darDeBaja(Estado estadoDeBaja, Empleado responsable) {
-        cambiarEstado(estadoDeBaja, responsable);
-    }
-
-    // --- CU15/CU16 Generar/Modificar Remito: pertenecen a otro caso de uso,
-    // no ejercitados por CU28; quedan como puntos de extensión. ---
-    public void incluirEnRemito() {
-        // TODO: usado por CU15 Generar Remito / CU16 Modificar Remito
-    }
-
-    public void quitarDeRemito() {
-        // TODO: usado por CU16 Modificar Remito / CU17 Cancelar Remito
-    }
-
-    // --- CU19/CU20 Generar/Modificar Bolsín: idem, otro caso de uso. ---
-    public void incluirEnBolsin() {
-        // TODO: usado por CU19 Generar Bolsín / CU20 Modificar Bolsín
-    }
-
-    public void quitarDeBolsin() {
-        // TODO: usado por CU20 Modificar Bolsín / CU21 Eliminar Bolsín
-    }
-
-    // --- CU27 Registrar el retiro de bolsines: pasa a "en bolsín enviado" ---
-    public void retirar(Estado estadoEnBolsinEnviado, Empleado responsable) {
-        cambiarEstado(estadoEnBolsinEnviado, responsable);
+        return estado;
     }
 }
