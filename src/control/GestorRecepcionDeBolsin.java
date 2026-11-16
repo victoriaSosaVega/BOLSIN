@@ -1,14 +1,14 @@
 package control;
 
 import boundary.PantallaNotificacionRecepcionBolsin;
-import boundary.PantallaRecepcionDeBolsin;
+import boundary.VistaRecepcion;
+import persistencia.RespaldoRecepcion;
 import modelo.Bolsin;
 import modelo.CM;
 import modelo.Empleado;
 import modelo.Estado;
 import modelo.Remito;
 import modelo.Sesion;
-import persistencia.PersistenciaException;
 import persistencia.RepositorioRecepcion;
 
 import java.time.LocalDateTime;
@@ -17,7 +17,10 @@ import java.util.List;
 public class GestorRecepcionDeBolsin {
 
     private final Sesion sesionActiva;
-    private final PantallaRecepcionDeBolsin pantalla;
+    private final VistaRecepcion pantalla;
+    private final RepositorioRecepcion repositorio;
+    private final java.util.function.Consumer<Bolsin> notificador;
+    private boolean finalizado;
 
     private Empleado empleadoLogueado;
     private CM cmEmpleado;
@@ -27,9 +30,17 @@ public class GestorRecepcionDeBolsin {
     private Estado estadoRecibidoEnCMDestino;
     private Estado estadoRecibidoyAceptado;
 
-    public GestorRecepcionDeBolsin(Sesion sesionActiva, PantallaRecepcionDeBolsin pantalla) {
+    public GestorRecepcionDeBolsin(Sesion sesionActiva, VistaRecepcion pantalla) {
+        this(sesionActiva, pantalla, new RepositorioRecepcion(),
+                new PantallaNotificacionRecepcionBolsin()::notificar);
+    }
+
+    public GestorRecepcionDeBolsin(Sesion sesionActiva, VistaRecepcion pantalla,
+            RepositorioRecepcion repositorio, java.util.function.Consumer<Bolsin> notificador) {
         this.sesionActiva = sesionActiva;
         this.pantalla = pantalla;
+        this.repositorio = repositorio;
+        this.notificador = notificador;
     }
 
     public void iniciarCU28() {
@@ -39,23 +50,34 @@ public class GestorRecepcionDeBolsin {
         pantalla.mostrarCMSeleccion(bolsines);
     }
 
-    private void obtenerEmpleadoLogueado() {
+    private Empleado obtenerEmpleadoLogueado() {
         empleadoLogueado = sesionActiva.obtenerEmpleadoEnSesion();
         cmEmpleado = empleadoLogueado.getCM();
+        return empleadoLogueado;
     }
 
-    private void buscarBolsinesEnEstadoEnviadoParaCMEmpleado() {
-        bolsines = Bolsin.buscarBolsinesEnEstadoEnviadoParaCMEmpleado(cmEmpleado.getNombre());
+    private List<Bolsin> buscarBolsinesEnEstadoEnviadoParaCMEmpleado() {
+        bolsines = new java.util.ArrayList<>();
+        for (Bolsin bolsin : Bolsin.getBolsines()) {
+            if (bolsin.esEstadoEnviado() && bolsin.esCMDestino(cmEmpleado.getNombre())) {
+                bolsines.add(bolsin);
+            }
+        }
+        return bolsines;
     }
 
     public void tomarBolsinSeleccionado(Bolsin seleccionado) {
+        if (finalizado || seleccionado == null || !bolsines.contains(seleccionado)) {
+            pantalla.mostrarAviso("Seleccione un bolsín enviado a su CM.");
+            return;
+        }
         bolsinSeleccionado = seleccionado;
-        buscarRemitosAsociadosBolsin();
+        buscarRemitosAsociadosBolsin(seleccionado);
         pantalla.mostrarOpcionesRecepcionBolsin(remitos);
     }
 
-    private void buscarRemitosAsociadosBolsin() {
-        remitos = bolsinSeleccionado.buscarRemitos();
+    private void buscarRemitosAsociadosBolsin(Bolsin seleccionado) {
+        remitos = seleccionado.buscarRemitos();
     }
 
     public void tomarSeleccionRecepcionBolsin() {
@@ -63,18 +85,51 @@ public class GestorRecepcionDeBolsin {
     }
 
     public void tomarConfirmacion(boolean confirma) {
-        if (!confirma) {
+        if (finalizado || !confirma || bolsinSeleccionado == null) {
+            return; // A6: no cambia objetos, base de datos ni notificaciones.
+        }
+        RespaldoRecepcion respaldo = new RespaldoRecepcion(bolsinSeleccionado);
+        try {
+            registrarRecepcionDeBolsin();
+            guardarCambios();
+        } catch (RuntimeException e) {
+            respaldo.restaurar();
+            pantalla.mostrarErrorGuardado(e.getMessage());
             return;
         }
-
-        registrarRecepcionDeBolsin();
-
-        if (!guardarCambios()) {
-            return;
+        finalizado = true;
+        try {
+            llamarCU29();
+        } catch (RuntimeException e) {
+            pantalla.mostrarAviso("La recepción quedó guardada. No se pudo completar la notificación: " + e.getMessage());
         }
+        finCU();
+    }
 
-        llamarCU29();
-        pantalla.finCU();
+    private void finCU() { pantalla.finCU(); }
+
+    public void filtrarBolsines(String precinto, String origen) {
+        if (finalizado) return;
+        String p = precinto.strip();
+        String o = origen.strip();
+        List<Bolsin> encontrados = bolsines.stream()
+                .filter(b -> p.isEmpty() || p.equalsIgnoreCase(b.getNumeroPrecinto()))
+                .filter(b -> o.isEmpty() || b.getCMOrigen().getNombre().toLowerCase(java.util.Locale.ROOT)
+                        .contains(o.toLowerCase(java.util.Locale.ROOT)))
+                .toList();
+        bolsinSeleccionado = null;
+        pantalla.mostrarCMSeleccion(encontrados);
+        if (encontrados.isEmpty() && (!p.isEmpty() || !o.isEmpty())) {
+            pantalla.mostrarAviso(!p.isEmpty() && !o.isEmpty()
+                    ? "No se encontraron bolsines para ese precinto y CM de origen."
+                    : !p.isEmpty() ? "No se encuentra bolsín con el número de precinto ingresado (A1)."
+                    : "No se encuentra bolsín con la CM de origen ingresada (A2).");
+        }
+    }
+
+    public void cancelarCU() {
+        finalizado = true;
+        pantalla.cancelarCU();
     }
 
     public void registrarRecepcionDeBolsin() {
@@ -106,19 +161,13 @@ public class GestorRecepcionDeBolsin {
         throw new IllegalStateException("No existe el estado 'Recibido y Aceptado' (Remito)");
     }
 
-    private LocalDateTime obtenerFechaActual() {
-        return LocalDateTime.now();
+    public LocalDateTime obtenerFechaActual() {
+        return LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
     }
 
     // Persistencia de infraestructura: no agrega una interacción del CU28 al diagrama.
-    private boolean guardarCambios() {
-        try {
-            new RepositorioRecepcion().guardar(bolsinSeleccionado, remitos);
-            return true;
-        } catch (PersistenciaException e) {
-            pantalla.mostrarErrorGuardado(e.getMessage());
-            return false;
-        }
+    private void guardarCambios() {
+        repositorio.guardar(bolsinSeleccionado, remitos);
     }
 
     private void llamarCU29() {
@@ -126,6 +175,6 @@ public class GestorRecepcionDeBolsin {
     }
 
     private void notificarCMOrigen() {
-        new PantallaNotificacionRecepcionBolsin().notificar(bolsinSeleccionado);
+        notificador.accept(bolsinSeleccionado);
     }
 }

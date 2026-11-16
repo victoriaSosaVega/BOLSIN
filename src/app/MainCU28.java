@@ -1,29 +1,22 @@
 package app;
 
-import boundary.PantallaPrincipalEncargadoBolsines;
-import modelo.Sesion;
-import persistencia.CargadorDeDatos;
-import persistencia.PersistenciaException;
-
-import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
+import persistencia.*;
+import web.ServidorLocal;
 
 public class MainCU28 {
-
-    public static void main(String[] args) {
-        // Los datos (estados, CMs, bolsines, remitos, documentacion y la sesion
-        // abierta del Encargado de Bolsines) se leen de la base. Para cargar
-        // datos de prueba ver db/seed_cu28.sql.
-        Sesion sesion;
-        try {
-            sesion = CargadorDeDatos.cargar();
-        } catch (PersistenciaException e) {
-            System.err.println(e.getMessage());
-            JOptionPane.showMessageDialog(null, e.getMessage(), "No se pudo iniciar", JOptionPane.ERROR_MESSAGE);
-            return;
+    public static void main(String[] args) throws Exception {
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/Argentina/Cordoba"));
+        if (!java.util.Arrays.asList(args).contains("--postgres")) {
+            InicializadorDemo.iniciar();
+            int agregados = DatosEjemploCU28.cargar();
+            if (agregados > 0) System.out.println("Ejemplos nuevos de bolsines: " + agregados + " (sin modificar recepciones anteriores).");
         }
-
-        // --- Se abre el menu del Encargado de Bolsines; CU28 es la opcion 1 ---
-        SwingUtilities.invokeLater(() -> new PantallaPrincipalEncargadoBolsines(sesion));
+        CargadorDeDatos.cargar(); // Detectar problemas de base antes de anunciar que la app está lista.
+        int puerto = Integer.getInteger("bolsin.port", 8080);
+        var servidor = new ServidorLocal(puerto);
+        Runtime.getRuntime().addShutdownHook(new Thread(servidor::close));
+        servidor.iniciar();
+        System.out.println("Bolsines web: http://localhost:" + servidor.getPuerto());
+        System.out.println("Ctrl+C para detener. Los datos quedan guardados en la base.");
     }
 }

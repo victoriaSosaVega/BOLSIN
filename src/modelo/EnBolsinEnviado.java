@@ -17,10 +17,10 @@ public final class EnBolsinEnviado extends EstadoDocumentacion {
     @Override
     public void marcarRecibidayAceptada(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
                                         List<CambioEstadoDocumentacion> historiales) {
+        documentacion.validarHistorial(fechaActual);
+        java.util.Objects.requireNonNull(empleado, "Se requiere el empleado responsable");
         CambioEstadoDocumentacion actual = buscarHistorial(fechaActual, historiales);
-        if (actual != null && actual.esActual()) {
-            actual.setFechaHoraFin(fechaActual);
-        }
+        actual.setFechaHoraFin(fechaActual);
         EstadoDocumentacion recibidayAceptada = crearEstado();
         CambioEstadoDocumentacion nuevo = crearCambioEstado(fechaActual, recibidayAceptada, empleado);
         documentacion.setEstado(recibidayAceptada);

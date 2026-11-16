@@ -1,0 +1,481 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide empty members
+title CU28 - Vista de implementación Java (complemento de la página 2)
+class MainCU28 {
+  + MainCU28()
+  + {static} void main(String[]) throws Exception
+}
+class PantallaNotificacionRecepcionBolsin {
+  + PantallaNotificacionRecepcionBolsin()
+  + void notificar(Bolsin)
+}
+class PantallaRecepcionDeBolsin {
+  + paso: int
+  + aviso: String
+  + error: String
+  + finalizado: boolean
+  + cancelado: boolean
+  + seleccionado: Bolsin
+  - empleado: Empleado
+  - bolsines: List<Bolsin>
+  - remitos: List<Remito>
+  + PantallaRecepcionDeBolsin()
+  + void mostrarCMEmpleadoLogueado(Empleado)
+  + void mostrarCMSeleccion(List<Bolsin>)
+  + void mostrarOpcionesRecepcionBolsin(List<Remito>)
+  + void solicitarConfirmacion()
+  + void mostrarErrorGuardado(String)
+  + void mostrarAviso(String)
+  + void finCU()
+  + void cancelarCU()
+  + void limpiarMensajes()
+  + List<Bolsin> getBolsinesMostrados()
+  + Map<String, Object> datos()
+  - Map<String, Object> datosBolsin(Bolsin)
+}
+interface VistaRecepcion {
+  + void mostrarCMEmpleadoLogueado(Empleado)
+  + void mostrarCMSeleccion(List<Bolsin>)
+  + void mostrarOpcionesRecepcionBolsin(List<Remito>)
+  + void solicitarConfirmacion()
+  + void mostrarErrorGuardado(String)
+  + void mostrarAviso(String)
+  + void finCU()
+  + void cancelarCU()
+}
+class GestorRecepcionDeBolsin {
+  - sesionActiva: Sesion
+  - pantalla: VistaRecepcion
+  - repositorio: RepositorioRecepcion
+  - notificador: Consumer<Bolsin>
+  - finalizado: boolean
+  - empleadoLogueado: Empleado
+  - cmEmpleado: CM
+  - bolsines: List<Bolsin>
+  - bolsinSeleccionado: Bolsin
+  - remitos: List<Remito>
+  - estadoRecibidoEnCMDestino: Estado
+  - estadoRecibidoyAceptado: Estado
+  + GestorRecepcionDeBolsin(Sesion, VistaRecepcion)
+  + GestorRecepcionDeBolsin(Sesion, VistaRecepcion, RepositorioRecepcion, Consumer<Bolsin>)
+  + void iniciarCU28()
+  - Empleado obtenerEmpleadoLogueado()
+  - List<Bolsin> buscarBolsinesEnEstadoEnviadoParaCMEmpleado()
+  + void tomarBolsinSeleccionado(Bolsin)
+  - void buscarRemitosAsociadosBolsin(Bolsin)
+  + void tomarSeleccionRecepcionBolsin()
+  + void tomarConfirmacion(boolean)
+  - void finCU()
+  + void filtrarBolsines(String, String)
+  + void cancelarCU()
+  + void registrarRecepcionDeBolsin()
+  - void buscarEstadoRecibidoEnCMDestinoBolsin()
+  - void buscarEstadoRecibidoyAceptadoRemito()
+  + LocalDateTime obtenerFechaActual()
+  - void guardarCambios()
+  - void llamarCU29()
+  - void notificarCMOrigen()
+}
+class Bolsin {
+  - {static} bolsines: List<Bolsin>
+  - id: Integer
+  - numeroBolsin: int
+  - numeroPrecinto: String
+  - fecha: LocalDate
+  - peso: float
+  - cmOrigen: CM
+  - cmDestino: CM
+  - remitos: List<Remito>
+  - cambiosEstado: List<CambioEstadoBolsin>
+  - cambioEstadoActual: CambioEstadoBolsin
+  + Bolsin(int, String, LocalDate, float, CM, CM)
+  + Integer getId()
+  + void setId(Integer)
+  + List<CambioEstadoBolsin> getCambiosEstado()
+  + int getNumeroBolsin()
+  + CM getCMOrigen()
+  + String getNumeroPrecinto()
+  + void agregarRemito(Remito)
+  + void agregarCambioEstado(CambioEstadoBolsin)
+  + boolean esCMDestino(String)
+  + CambioEstadoBolsin getCambioEstadoActual()
+  + boolean esEstadoEnviado()
+  + List<Remito> buscarRemitos()
+  + void marcarRecibidoEnCMDestino(LocalDateTime, Empleado, Estado, Estado)
+  - void validarRecepcion(LocalDateTime, Empleado, Estado, Estado)
+  + {static} List<Bolsin> getBolsines()
+  + {static} void limpiarCatalogo()
+  - CambioEstadoBolsin crearCambioEstado(LocalDateTime, Estado, Empleado)
+  - void marcarRecibidoyAceptadoRemito(LocalDateTime, Empleado, Estado)
+  + {static} List<Bolsin> buscarBolsinesEnEstadoEnviadoParaCMEmpleado(String)
+}
+class CM {
+  - id: Integer
+  - codigo: String
+  - nombre: String
+  - direccion: String
+  - email: String
+  - telefono: String
+  + CM(String, String, String, String, String)
+  + Integer getId()
+  + void setId(Integer)
+  + String getNombre()
+  + String getCodigo()
+  + String getEmail()
+  + boolean esCMEmpleado(CM)
+}
+class CambioEstadoBolsin {
+  - id: Integer
+  - fechaHoraInicio: LocalDateTime
+  - fechaHoraFin: LocalDateTime
+  - estado: Estado
+  - responsable: Empleado
+  + CambioEstadoBolsin(LocalDateTime, Estado, Empleado)
+  + CambioEstadoBolsin(Estado, LocalDateTime, LocalDateTime, Empleado)
+  + boolean esActual()
+  + boolean esEnviado()
+  + void setFechaHoraFin(LocalDateTime)
+  + Estado getEstado()
+  + Empleado getResponsable()
+  + Integer getId()
+  + void setId(Integer)
+  + LocalDateTime getFechaHoraInicio()
+  + LocalDateTime getFechaHoraFin()
+}
+class CambioEstadoDocumentacion {
+  - id: Integer
+  - fechaHoraInicio: LocalDateTime
+  - fechaHoraFin: LocalDateTime
+  - estado: EstadoDocumentacion
+  - responsable: Empleado
+  + CambioEstadoDocumentacion(LocalDateTime, EstadoDocumentacion, Empleado)
+  + CambioEstadoDocumentacion(EstadoDocumentacion, LocalDateTime, LocalDateTime, Empleado)
+  + boolean esActual()
+  + void setFechaHoraFin(LocalDateTime)
+  + EstadoDocumentacion getEstado()
+  + Empleado getResponsable()
+  + Integer getId()
+  + void setId(Integer)
+  + LocalDateTime getFechaHoraInicio()
+  + LocalDateTime getFechaHoraFin()
+}
+class DeBaja {
+  + DeBaja()
+}
+class DetalleRemito {
+  - areaCMCDestino: String
+  - documentacion: Documentacion
+  + DetalleRemito(String, Documentacion)
+  + Documentacion obtenerDatosDocumentacion()
+  + void marcarRecibidayAceptadaDocumentacion(LocalDateTime, Empleado)
+}
+class Documentacion {
+  - id: Integer
+  - numero: int
+  - asunto: String
+  - fechaPase: LocalDate
+  - tipoDocumentacion: TipoDocumentacion
+  - estado: EstadoDocumentacion
+  - cmOrigen: CM
+  - cambiosEstado: List<CambioEstadoDocumentacion>
+  + Documentacion(int, String, LocalDate, TipoDocumentacion)
+  + CM getCMOrigen()
+  + void setCMOrigen(CM)
+  + Integer getId()
+  + void setId(Integer)
+  + List<CambioEstadoDocumentacion> getCambiosEstado()
+  + String getAsunto()
+  + TipoDocumentacion getTipo()
+  + void setEstado(EstadoDocumentacion)
+  + EstadoDocumentacion getEstado()
+  + CambioEstadoDocumentacion getCambioEstadoActual()
+  + void agregarCambioEstado(CambioEstadoDocumentacion)
+  + void marcarRecibidayAceptada(LocalDateTime, Empleado)
+  + void marcarRecibidayRechazada(LocalDateTime, Empleado)
+  + void marcarNoRecibida(LocalDateTime, Empleado)
+  + void redirigir(LocalDateTime, Empleado)
+  + void reenviar(LocalDateTime, Empleado)
+  + void darDeBaja(LocalDateTime, Empleado)
+  + void incluirEnRemito(LocalDateTime, Empleado)
+  + void quitarDeRemito(LocalDateTime, Empleado)
+  + void incluirEnBolsin(LocalDateTime, Empleado)
+  + void quitarDeBolsin(LocalDateTime, Empleado)
+  + void retirar(LocalDateTime, Empleado)
+  + void validarHistorial(LocalDateTime)
+  - EstadoDocumentacion estadoActual()
+}
+class Empleado {
+  - id: Integer
+  - nombre: String
+  - apellido: String
+  - email: String
+  - cm: CM
+  + Empleado(String, String, String, CM)
+  + Integer getId()
+  + void setId(Integer)
+  + CM getCM()
+  + String getNombre()
+  + String getApellido()
+  + String getEmail()
+}
+class EnBolsinEnviado {
+  + EnBolsinEnviado()
+  + void marcarRecibidayAceptada(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void marcarNoRecibida(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void marcarRecibidayRechazada(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void redirigir(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + CambioEstadoDocumentacion buscarHistorial(LocalDateTime, List<CambioEstadoDocumentacion>)
+  + EstadoDocumentacion crearEstado()
+  + CambioEstadoDocumentacion crearCambioEstado(LocalDateTime, EstadoDocumentacion, Empleado)
+}
+class EnBolsinSaliente {
+  + EnBolsinSaliente()
+  + void quitarDeBolsin(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void retirar(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+}
+class EnRemito {
+  + EnRemito()
+  + void incluirEnBolsin(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void quitarDeRemito(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+}
+class Estado {
+  + {static} AMBITO_BOLSIN: String
+  + {static} AMBITO_REMITO: String
+  + {static} AMBITO_DOCUMENTACION: String
+  - {static} estados: List<Estado>
+  - id: Integer
+  - nombre: String
+  - descripcion: String
+  - ambito: String
+  + Estado(String, String, String)
+  # Estado(String, String, String, boolean)
+  + Integer getId()
+  + void setId(Integer)
+  + String getNombre()
+  + String getDescripcion()
+  + String getAmbito()
+  + boolean esAmbitoBolsin()
+  + boolean esAmbitoRemito()
+  + boolean esEnviado()
+  + boolean esRecibidoEnCMDestino()
+  + boolean esRecibidoyAceptado()
+  + {static} void limpiarCatalogo()
+  + {static} List<Estado> getEstados()
+}
+abstract class EstadoDocumentacion {
+  # EstadoDocumentacion(String, String)
+  + void incluirEnRemito(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void quitarDeRemito(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void reenviar(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void incluirEnBolsin(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void quitarDeBolsin(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void retirar(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void marcarRecibidayAceptada(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void marcarRecibidayRechazada(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void marcarNoRecibida(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void redirigir(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void darDeBaja(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  # void cambiarEstadoDocumentacion(Documentacion, EstadoDocumentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  - void noPermitida(String)
+}
+class NoRecibida {
+  + NoRecibida()
+  + void reenviar(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void darDeBaja(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+}
+class ParaRedirigir {
+  + ParaRedirigir()
+  + void marcarRecibidayRechazada(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void marcarRecibidayAceptada(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+}
+class RecibidaYRechazada {
+  + RecibidaYRechazada()
+  + void reenviar(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+}
+class RecibidayAceptada {
+  + RecibidayAceptada()
+}
+class Registrada {
+  + Registrada()
+  + void incluirEnRemito(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+  + void darDeBaja(Documentacion, LocalDateTime, Empleado, List<CambioEstadoDocumentacion>)
+}
+class Remito {
+  - id: Integer
+  - numero: int
+  - fecha: LocalDate
+  - detalleRemito: List<DetalleRemito>
+  - estado: Estado
+  + Remito(int, LocalDate)
+  + Integer getId()
+  + void setId(Integer)
+  + int getNumero()
+  + void agregarDetalle(DetalleRemito)
+  + List<DetalleRemito> obtenerDatosDocumentacion()
+  + void setEstado(Estado)
+  + Estado getEstado()
+  + void marcarRecibidoyAceptado(LocalDateTime, Empleado, Estado)
+  - void marcarRecibidayAceptadaDocumentacion(LocalDateTime, Empleado)
+}
+class Sesion {
+  - fechaHoraInicio: LocalDateTime
+  - fechaHoraFin: LocalDateTime
+  - usuario: Usuario
+  + Sesion(Usuario)
+  + Empleado obtenerEmpleadoEnSesion()
+  + void cerrar()
+}
+class TipoDocumentacion {
+  - id: Integer
+  - nombre: String
+  - descripcion: String
+  + TipoDocumentacion(String, String)
+  + Integer getId()
+  + void setId(Integer)
+  + String getNombre()
+}
+class Usuario {
+  - nombre: String
+  - contrasenia: String
+  - empleado: Empleado
+  + Usuario(String, String, Empleado)
+  + Empleado obtenerEmpleado()
+}
+class CargadorDeDatos {
+  - CargadorDeDatos()
+  + {static} Sesion cargar()
+  - {static} Map<Integer, CM> cargarCMs(Connection) throws SQLException
+  - {static} Map<Integer, Estado> cargarEstados(Connection) throws SQLException
+  - {static} Map<Integer, TipoDocumentacion> cargarTiposDocumentacion(Connection) throws SQLException
+  - {static} Map<Integer, Empleado> cargarEmpleados(Connection, Map<Integer, CM>) throws SQLException
+  - {static} Map<Integer, Usuario> cargarUsuarios(Connection, Map<Integer, Empleado>) throws SQLException
+  - {static} Map<Integer, Documentacion> cargarDocumentaciones(Connection, Map<Integer, TipoDocumentacion>, Map<Integer, CM>) throws SQLException
+  - {static} Map<Integer, Bolsin> cargarBolsines(Connection, Map<Integer, CM>) throws SQLException
+  - {static} Map<Integer, Remito> cargarRemitos(Connection, Map<Integer, Estado>, Map<Integer, Bolsin>) throws SQLException
+  - {static} void cargarDetallesRemito(Connection, Map<Integer, Remito>, Map<Integer, Documentacion>) throws SQLException
+  - {static} void cargarCambiosEstadoBolsin(Connection, Map<Integer, Estado>, Map<Integer, Empleado>, Map<Integer, Bolsin>) throws SQLException
+  - {static} void cargarCambiosEstadoDocumentacion(Connection, Map<Integer, Estado>, Map<Integer, Empleado>, Map<Integer, Documentacion>) throws SQLException
+  - {static} Sesion cargarSesionAbierta(Connection, Map<Integer, Usuario>) throws SQLException
+  - {static} Estado estadoRequerido(Map<Integer, Estado>, int)
+  - {static} EstadoDocumentacion estadoDocumentacionRequerido(Map<Integer, Estado>, int)
+  - {static} Empleado responsable(ResultSet, Map<Integer, Empleado>) throws SQLException
+  - {static} LocalDateTime fecha(ResultSet, String) throws SQLException
+}
+class Conexion {
+  - {static} ENV_URL: String
+  - {static} ENV_USER: String
+  - {static} ENV_PASSWORD: String
+  - {static} ARCHIVO_ENV: Path
+  - Conexion()
+  + {static} Connection abrir() throws SQLException
+  - {static} String requerida(String, Map<String, String>)
+  - {static} Map<String, String> leerArchivoEnv()
+}
+class DatosEjemploCU28 {
+  - {static} TIPOS: String[]
+  - {static} ASUNTOS: String[]
+  - DatosEjemploCU28()
+  + {static} int cargar()
+  - {static} int estado(Connection, String, String) throws SQLException
+  - {static} int id(Connection, String, Object...) throws SQLException
+  - {static} int buscar(Connection, String, Object...) throws SQLException
+  - {static} int insertar(Connection, String, Object...) throws SQLException
+}
+class FabricaDeEstados {
+  - FabricaDeEstados()
+  - {static} Estado crear(String, String, String)
+}
+class InicializadorDemo {
+  - InicializadorDemo()
+  + {static} void iniciar()
+  - {static} void ejecutar(Connection, String) throws Exception
+}
+class PersistenciaException {
+  + PersistenciaException(String)
+  + PersistenciaException(String, Throwable)
+}
+class RepositorioRecepcion {
+  - idsDeEstado: Map<String, Integer>
+  + RepositorioRecepcion()
+  + void guardar(Bolsin, List<Remito>)
+  - void verificarVigencia(Connection, Bolsin) throws SQLException
+  - void verificarHistorial(Connection, String, String, String, int, int) throws SQLException
+  - void guardarCambiosEstadoBolsin(Connection, Bolsin, List<Runnable>) throws SQLException
+  - void guardarCambiosEstadoDocumentacion(Connection, Documentacion, List<Runnable>) throws SQLException
+  - void actualizarEstadoRemito(Connection, Remito) throws SQLException
+  - int insertar(Connection, String, int, int, LocalDateTime, LocalDateTime, Empleado) throws SQLException
+  - void cerrar(Connection, String, LocalDateTime, int) throws SQLException
+  - int idEstado(Connection, Estado) throws SQLException
+  - int requerido(Integer, String)
+}
+class RespaldoRecepcion {
+  - restauraciones: List<Runnable>
+  + RespaldoRecepcion(Bolsin)
+  + void restaurar()
+}
+class Json {
+  - Json()
+  - {static} String escribir(Object)
+}
+class ServidorLocal {
+  - servidor: HttpServer
+  - {static} DURACION: long
+  + ServidorLocal(int) throws IOException
+  + void iniciar()
+  + int getPuerto()
+  + void close()
+  - void atender(HttpExchange) throws IOException
+  - {static} String cookie(HttpExchange)
+  - {static} Map<String, String> formulario(String)
+  - void archivo(HttpExchange, String) throws IOException
+  - {static} void responder(HttpExchange, int, Object) throws IOException
+  - {static} void enviar(HttpExchange, int, String, byte[]) throws IOException
+}
+Bolsin --> Bolsin : bolsines
+Bolsin --> CM : cmDestino
+Bolsin --> CM : cmOrigen
+Bolsin --> CambioEstadoBolsin : cambioEstadoActual
+Bolsin --> CambioEstadoBolsin : cambiosEstado
+Bolsin --> Remito : remitos
+CambioEstadoBolsin --> Empleado : responsable
+CambioEstadoBolsin --> Estado : estado
+CambioEstadoDocumentacion --> Empleado : responsable
+CambioEstadoDocumentacion --> EstadoDocumentacion : estado
+DetalleRemito --> Documentacion : documentacion
+Documentacion --> CM : cmOrigen
+Documentacion --> CambioEstadoDocumentacion : cambiosEstado
+Documentacion --> EstadoDocumentacion : estado
+Documentacion --> TipoDocumentacion : tipoDocumentacion
+Empleado --> CM : cm
+Estado --> Estado : estados
+Estado <|-- EstadoDocumentacion
+EstadoDocumentacion <|-- DeBaja
+EstadoDocumentacion <|-- EnBolsinEnviado
+EstadoDocumentacion <|-- EnBolsinSaliente
+EstadoDocumentacion <|-- EnRemito
+EstadoDocumentacion <|-- NoRecibida
+EstadoDocumentacion <|-- ParaRedirigir
+EstadoDocumentacion <|-- RecibidaYRechazada
+EstadoDocumentacion <|-- RecibidayAceptada
+EstadoDocumentacion <|-- Registrada
+GestorRecepcionDeBolsin --> Bolsin : bolsinSeleccionado
+GestorRecepcionDeBolsin --> Bolsin : bolsines
+GestorRecepcionDeBolsin --> CM : cmEmpleado
+GestorRecepcionDeBolsin --> Empleado : empleadoLogueado
+GestorRecepcionDeBolsin --> Estado : estadoRecibidoEnCMDestino
+GestorRecepcionDeBolsin --> Estado : estadoRecibidoyAceptado
+GestorRecepcionDeBolsin --> Remito : remitos
+GestorRecepcionDeBolsin --> RepositorioRecepcion : repositorio
+GestorRecepcionDeBolsin --> Sesion : sesionActiva
+GestorRecepcionDeBolsin --> VistaRecepcion : pantalla
+PantallaRecepcionDeBolsin --> Bolsin : bolsines
+PantallaRecepcionDeBolsin --> Bolsin : seleccionado
+PantallaRecepcionDeBolsin --> Empleado : empleado
+PantallaRecepcionDeBolsin --> Remito : remitos
+Remito --> DetalleRemito : detalleRemito
+Remito --> Estado : estado
+Sesion --> Usuario : usuario
+Usuario --> Empleado : empleado
+VistaRecepcion <|.. PantallaRecepcionDeBolsin
+@enduml

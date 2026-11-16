@@ -80,8 +80,10 @@ public class Estado {
         return "Recibido y Aceptado".equals(nombre);
     }
 
+    public static void limpiarCatalogo() { estados.clear(); }
+
     // Lista de estados simples cargados: el Gestor la recorre para buscar los que necesita.
     public static List<Estado> getEstados() {
-        return estados;
+        return List.copyOf(estados);
     }
 }

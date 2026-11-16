@@ -39,20 +39,24 @@ public final class CargadorDeDatos {
     // Devuelve la sesion abierta (la mas reciente sin fecha_hora_fin). El login
     // no es parte del CU28, asi que la sesion tiene que existir en la base.
     public static Sesion cargar() {
+        Bolsin.limpiarCatalogo();
+        Estado.limpiarCatalogo();
         try (Connection c = Conexion.abrir()) {
             Map<Integer, CM> cms = cargarCMs(c);
             Map<Integer, Estado> estados = cargarEstados(c);
             Map<Integer, TipoDocumentacion> tipos = cargarTiposDocumentacion(c);
             Map<Integer, Empleado> empleados = cargarEmpleados(c, cms);
             Map<Integer, Usuario> usuarios = cargarUsuarios(c, empleados);
-            Map<Integer, Documentacion> documentaciones = cargarDocumentaciones(c, tipos);
+            Map<Integer, Documentacion> documentaciones = cargarDocumentaciones(c, tipos, cms);
             Map<Integer, Bolsin> bolsines = cargarBolsines(c, cms);
             Map<Integer, Remito> remitos = cargarRemitos(c, estados, bolsines);
             cargarDetallesRemito(c, remitos, documentaciones);
             cargarCambiosEstadoBolsin(c, estados, empleados, bolsines);
             cargarCambiosEstadoDocumentacion(c, estados, empleados, documentaciones);
             return cargarSesionAbierta(c, usuarios);
-        } catch (SQLException e) {
+        } catch (SQLException | RuntimeException e) {
+            Bolsin.limpiarCatalogo();
+            Estado.limpiarCatalogo();
             throw new PersistenciaException("No se pudieron cargar los datos de la base: " + e.getMessage(), e);
         }
     }
@@ -133,15 +137,16 @@ public final class CargadorDeDatos {
     }
 
     private static Map<Integer, Documentacion> cargarDocumentaciones(Connection c,
-            Map<Integer, TipoDocumentacion> tipos) throws SQLException {
+            Map<Integer, TipoDocumentacion> tipos, Map<Integer, CM> cms) throws SQLException {
         Map<Integer, Documentacion> mapa = new HashMap<>();
         try (Statement st = c.createStatement();
              ResultSet rs = st.executeQuery(
-                     "select id_documentacion, numero, asunto, fecha_pase, id_tipo_doc from documentacion")) {
+                     "select id_documentacion, numero, asunto, fecha_pase, id_tipo_doc, id_cm_origen from documentacion")) {
             while (rs.next()) {
                 Documentacion d = new Documentacion(rs.getInt("numero"), rs.getString("asunto"),
                         rs.getDate("fecha_pase").toLocalDate(), tipos.get(rs.getInt("id_tipo_doc")));
                 d.setId(rs.getInt("id_documentacion"));
+                d.setCMOrigen(cms.get(rs.getInt("id_cm_origen")));
                 mapa.put(d.getId(), d);
             }
         }
@@ -156,7 +161,7 @@ public final class CargadorDeDatos {
                      "select id_bolsin, numero_bolsin, numero_precinto, fecha, peso, id_cm_origen, id_cm_destino "
                              + "from bolsin order by id_bolsin")) {
             while (rs.next()) {
-                double peso = rs.getDouble("peso"); // peso admite null en la base: queda en 0
+                float peso = rs.getFloat("peso"); // peso admite null en la base: queda en 0
                 Bolsin b = new Bolsin(rs.getInt("numero_bolsin"), rs.getString("numero_precinto"),
                         rs.getDate("fecha").toLocalDate(), peso,
                         cms.get(rs.getInt("id_cm_origen")), cms.get(rs.getInt("id_cm_destino")));
@@ -244,13 +249,16 @@ public final class CargadorDeDatos {
 
     private static Sesion cargarSesionAbierta(Connection c, Map<Integer, Usuario> usuarios) throws SQLException {
         String sql = "select id_usuario from sesion where fecha_hora_fin is null "
-                + "order by fecha_hora_inicio desc limit 1";
+                + "order by fecha_hora_inicio desc";
         try (PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             if (!rs.next()) {
                 throw new PersistenciaException(
                         "No hay una sesion abierta en la base (tabla sesion con fecha_hora_fin vacia).");
             }
-            return new Sesion(usuarios.get(rs.getInt("id_usuario")));
+            Usuario usuario = usuarios.get(rs.getInt("id_usuario"));
+            if (rs.next()) throw new PersistenciaException("Hay varias sesiones abiertas. Seleccione una única sesión para esta demostración.");
+            if (usuario == null || usuario.obtenerEmpleado() == null) throw new PersistenciaException("La sesión no tiene un empleado válido.");
+            return new Sesion(usuario);
         }
     }
 

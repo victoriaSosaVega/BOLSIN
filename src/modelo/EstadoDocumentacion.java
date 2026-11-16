@@ -76,6 +76,8 @@ public abstract class EstadoDocumentacion extends Estado {
     // son las del CU28 (esta ultima, en EnBolsinEnviado, muestra cada paso).
     protected void cambiarEstadoDocumentacion(Documentacion documentacion, EstadoDocumentacion nuevoEstado,
             LocalDateTime fechaActual, Empleado empleado, List<CambioEstadoDocumentacion> historiales) {
+        documentacion.validarHistorial(fechaActual);
+        java.util.Objects.requireNonNull(empleado, "Se requiere el empleado responsable");
         for (CambioEstadoDocumentacion cambio : historiales) {
             if (cambio.esActual()) {
                 cambio.setFechaHoraFin(fechaActual);

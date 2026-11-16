@@ -13,8 +13,8 @@ import modelo.Registrada;
 
 // Arma el objeto que corresponde a una fila de la tabla estado. Los estados de
 // Bolsin y Remito son Estado simples (sin patron State); los de Documentacion son
-// la subclase concreta de EstadoDocumentacion que le toca por nombre. Devuelve
-// null si un estado de documentacion de la base no tiene clase en el modelo.
+// la subclase concreta de EstadoDocumentacion que le toca por nombre. Rechaza
+// estados de documentación desconocidos en lugar de omitir filas.
 final class FabricaDeEstados {
 
     private FabricaDeEstados() {
@@ -44,7 +44,7 @@ final class FabricaDeEstados {
             case "De Baja":
                 return new DeBaja();
             default:
-                return null;
+                throw new PersistenciaException("Estado de documentación desconocido: " + nombre);
         }
     }
 }

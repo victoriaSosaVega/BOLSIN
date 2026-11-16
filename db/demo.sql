@@ -1,15 +1,4 @@
--- Datos de prueba para el CU28 (los mismos que antes cargaba MainCU28 a mano).
---
--- Se corre UNA sola vez, en el SQL Editor de Supabase, sobre las tablas VACIAS.
--- No borra nada. Si ya hay datos cargados, no lo corras sin revisar antes.
---
--- Las columnas id_cm_origen / id_cm_destino de remito y id_cm_origen de
--- documentacion no figuran en el diagrama de clases del CU28 pero son NOT NULL
--- en la base (vienen de otros casos de uso del ERS), asi que se completan aca.
-
--- Requisito: Remito -> Estado (diagrama de clases). Si ya lo corriste no pasa nada.
-ALTER TABLE remito ADD COLUMN IF NOT EXISTS id_estado int4 REFERENCES estado(id_estado);
-
+-- Solo para una base de demostración vacía.
 -- Estados
 INSERT INTO estado (nombre, descripcion, ambito) VALUES
   ('Enviado',                     'Bolsin enviado por CM origen',                         'Bolsin'),
@@ -36,7 +25,7 @@ INSERT INTO usuario (nombre, contrasena, id_empleado) VALUES
 -- Las columnas timestamp no guardan zona horaria y Java escribe la hora local, asi
 -- que el seed tambien usa hora argentina (now() de Postgres seria UTC, 3 h menos).
 INSERT INTO sesion (fecha_hora_inicio, id_usuario) VALUES
-  (now() AT TIME ZONE 'America/Argentina/Cordoba', (SELECT id_usuario FROM usuario WHERE nombre = 'aperez'));
+  (CURRENT_TIMESTAMP, (SELECT id_usuario FROM usuario WHERE nombre = 'aperez'));
 
 -- Tipo de documentacion y documentacion (origen: CM Cordoba)
 INSERT INTO tipo_documentacion (nombre, descripcion) VALUES
@@ -74,6 +63,16 @@ INSERT INTO detalle_remito (id_remito, id_documentacion, area_cmc_destino) VALUE
 
 -- Los dos bolsines arrancan en estado Enviado (cambio de estado actual: sin fecha_hora_fin)
 INSERT INTO cambio_estado_bolsin (id_bolsin, id_estado, fecha_hora_inicio)
-SELECT b.id_bolsin, e.id_estado, now() AT TIME ZONE 'America/Argentina/Cordoba'
+SELECT b.id_bolsin, e.id_estado, CURRENT_TIMESTAMP
 FROM bolsin b, estado e
 WHERE b.numero_bolsin IN (500, 501) AND e.nombre = 'Enviado' AND e.ambito = 'Bolsin';
+
+INSERT INTO estado (nombre, descripcion, ambito) VALUES
+('Registrada', 'Registrada', 'Documentacion'), ('En Remito', 'En Remito', 'Documentacion'),
+('En Bolsin Saliente', 'En Bolsin Saliente', 'Documentacion'), ('En Bolsin Enviado', 'En Bolsin Enviado', 'Documentacion'),
+('De Baja', 'De Baja', 'Documentacion'), ('En Bolsin Enviado', 'En Bolsin Enviado', 'Remito');
+UPDATE remito SET id_estado = (SELECT id_estado FROM estado WHERE nombre = 'En Bolsin Enviado' AND ambito = 'Remito');
+INSERT INTO cambio_estado_documentacion (id_documentacion, id_estado, fecha_hora_inicio, id_empleado)
+SELECT d.id_documentacion, e.id_estado, CURRENT_TIMESTAMP, (SELECT id_empleado FROM empleado WHERE email = 'ana.perez@organismo.gob.ar')
+FROM documentacion d CROSS JOIN estado e WHERE e.nombre = 'En Bolsin Enviado' AND e.ambito = 'Documentacion';
+UPDATE cambio_estado_bolsin SET id_empleado = (SELECT id_empleado FROM empleado WHERE email = 'ana.perez@organismo.gob.ar');

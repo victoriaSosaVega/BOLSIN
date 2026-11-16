@@ -47,11 +47,11 @@ public class Remito {
         return estado;
     }
 
-    // Remito cambia de estado sin patron State: se asigna el estado que le pasa el
-    // Gestor y despues marca la documentacion de cada detalle.
+    // Remito cambia de estado sin patron State: marca la documentación de cada detalle y después
+    // se asigna el estado recibido del Gestor (SECUENCIA 2).
     public void marcarRecibidoyAceptado(LocalDateTime fechaActual, Empleado empleado, Estado estadoRecibidoyAceptado) {
-        setEstado(estadoRecibidoyAceptado);
         marcarRecibidayAceptadaDocumentacion(fechaActual, empleado);
+        setEstado(estadoRecibidoyAceptado);
     }
 
     private void marcarRecibidayAceptadaDocumentacion(LocalDateTime fechaActual, Empleado empleado) {

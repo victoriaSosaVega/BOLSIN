@@ -14,6 +14,7 @@ public class Documentacion {
     private LocalDate fechaPase;
     private TipoDocumentacion tipoDocumentacion;
     private EstadoDocumentacion estado;
+    private CM cmOrigen;
     private List<CambioEstadoDocumentacion> cambiosEstado = new ArrayList<>();
 
     public Documentacion(int numero, String asunto, LocalDate fechaPase, TipoDocumentacion tipoDocumentacion) {
@@ -22,6 +23,10 @@ public class Documentacion {
         this.fechaPase = fechaPase;
         this.tipoDocumentacion = tipoDocumentacion;
     }
+
+    public CM getCMOrigen() { return cmOrigen; }
+
+    public void setCMOrigen(CM cmOrigen) { this.cmOrigen = cmOrigen; }
 
     public Integer getId() {
         return id;
@@ -112,10 +117,20 @@ public class Documentacion {
         estadoActual().retirar(this, fechaActual, empleado, cambiosEstado);
     }
 
+    public void validarHistorial(LocalDateTime fecha) {
+        if (fecha == null || cambiosEstado.stream().filter(CambioEstadoDocumentacion::esActual).count() != 1) {
+            throw new IllegalStateException("La documentación debe tener exactamente un historial vigente.");
+        }
+        CambioEstadoDocumentacion actual = getCambioEstadoActual();
+        if (actual.getEstado() != estado || fecha.isBefore(actual.getFechaHoraInicio())) {
+            throw new IllegalStateException("El estado y el historial de la documentación son inconsistentes.");
+        }
+    }
+
     private EstadoDocumentacion estadoActual() {
         if (estado == null) {
             throw new IllegalStateException("La documentacion '" + asunto
-                    + "' no tiene estado en la base: correr db/migracion_state.sql");
+                    + "' no tiene un estado vigente en la base. Revisá su historial de estados.");
         }
         return estado;
     }

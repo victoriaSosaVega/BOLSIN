@@ -1,4 +1,28 @@
-out/
+# Compilación y dependencias descargadas
+/target/
+/out/
+/lib/
 *.class
-lib/*.jar
+
+# Datos locales y configuración de conexión
+/data/
 .env
+.env.*
+!.env.example
+*.mv.db
+*.trace.db
+
+# Configuración personal del IDE y herramientas locales
+.idea/
+*.iml
+.vscode/
+.codex/
+.agents/
+.aws/
+
+# Temporales, registros y backups del editor
+*.log
+*.bkp
+*~
+.DS_Store
+Thumbs.db

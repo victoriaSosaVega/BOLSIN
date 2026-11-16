@@ -36,6 +36,7 @@ public class RepositorioRecepcion {
         try (Connection c = Conexion.abrir()) {
             c.setAutoCommit(false);
             try {
+                verificarVigencia(c, bolsin);
                 guardarCambiosEstadoBolsin(c, bolsin, asignarIds);
                 for (Remito remito : remitos) {
                     actualizarEstadoRemito(c, remito);
@@ -54,6 +55,52 @@ public class RepositorioRecepcion {
         asignarIds.forEach(Runnable::run);
     }
 
+    // Serializa recepciones del mismo bolsín y detecta una pantalla desactualizada.
+    private void verificarVigencia(Connection c, Bolsin bolsin) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("select id_bolsin from bolsin where id_bolsin = ? for update")) {
+            ps.setInt(1, requerido(bolsin.getId(), "bolsin"));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new PersistenciaException("El bolsín ya no existe.");
+            }
+        }
+        var anterior = bolsin.getCambiosEstado().stream()
+                .filter(h -> h.getId() != null && h.getFechaHoraFin() != null)
+                .max(java.util.Comparator.comparing(CambioEstadoBolsin::getFechaHoraInicio))
+                .orElseThrow(() -> new PersistenciaException("Falta el historial previo del bolsín."));
+        verificarHistorial(c, "cambio_estado_bolsin", "id_bolsin", "id_cambio_estado_bolsin",
+                bolsin.getId(), anterior.getId());
+        var documentos = bolsin.buscarRemitos().stream().flatMap(r -> r.obtenerDatosDocumentacion().stream())
+                .map(DetalleRemito::obtenerDatosDocumentacion).distinct()
+                .sorted(java.util.Comparator.comparing(Documentacion::getId)).toList();
+        for (Documentacion doc : documentos) {
+            try (PreparedStatement ps = c.prepareStatement("select id_documentacion from documentacion where id_documentacion = ? for update")) {
+                ps.setInt(1, requerido(doc.getId(), "documentacion"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) throw new PersistenciaException("La documentación ya no existe.");
+                }
+            }
+            var previo = doc.getCambiosEstado().stream().filter(h -> h.getId() != null && h.getFechaHoraFin() != null)
+                    .max(java.util.Comparator.comparing(CambioEstadoDocumentacion::getFechaHoraInicio))
+                    .orElseThrow(() -> new PersistenciaException("Falta el historial previo de la documentación."));
+            verificarHistorial(c, "cambio_estado_documentacion", "id_documentacion", "id_cambio_estado_doc",
+                    doc.getId(), previo.getId());
+        }
+    }
+
+    private void verificarHistorial(Connection c, String tabla, String padre, String clave, int id, int esperado)
+            throws SQLException {
+        // Identificadores internos constantes; los valores se parametrizan.
+        try (PreparedStatement ps = c.prepareStatement("select " + clave + " from " + tabla
+                + " where " + padre + " = ? and fecha_hora_fin is null")) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getInt(1) != esperado || rs.next()) {
+                    throw new PersistenciaException("Los datos cambiaron en otra sesión. Vuelva a abrir la aplicación.");
+                }
+            }
+        }
+    }
+
     private void guardarCambiosEstadoBolsin(Connection c, Bolsin bolsin, List<Runnable> asignarIds)
             throws SQLException {
         for (CambioEstadoBolsin cambio : bolsin.getCambiosEstado()) {
@@ -61,7 +108,7 @@ public class RepositorioRecepcion {
                 int id = insertar(c,
                         "insert into cambio_estado_bolsin "
                                 + "(id_bolsin, id_estado, fecha_hora_inicio, fecha_hora_fin, id_empleado) "
-                                + "values (?, ?, ?, ?, ?) returning id_cambio_estado_bolsin",
+                                + "values (?, ?, ?, ?, ?)",
                         requerido(bolsin.getId(), "bolsin"), idEstado(c, cambio.getEstado()),
                         cambio.getFechaHoraInicio(), cambio.getFechaHoraFin(), cambio.getResponsable());
                 asignarIds.add(() -> cambio.setId(id));
@@ -79,7 +126,7 @@ public class RepositorioRecepcion {
                 int id = insertar(c,
                         "insert into cambio_estado_documentacion "
                                 + "(id_documentacion, id_estado, fecha_hora_inicio, fecha_hora_fin, id_empleado) "
-                                + "values (?, ?, ?, ?, ?) returning id_cambio_estado_doc",
+                                + "values (?, ?, ?, ?, ?)",
                         requerido(doc.getId(), "documentacion"), idEstado(c, cambio.getEstado()),
                         cambio.getFechaHoraInicio(), cambio.getFechaHoraFin(), cambio.getResponsable());
                 asignarIds.add(() -> cambio.setId(id));
@@ -97,13 +144,13 @@ public class RepositorioRecepcion {
         try (PreparedStatement ps = c.prepareStatement("update remito set id_estado = ? where id_remito = ?")) {
             ps.setInt(1, idEstado(c, remito.getEstado()));
             ps.setInt(2, requerido(remito.getId(), "remito"));
-            ps.executeUpdate();
+            if (ps.executeUpdate() != 1) throw new SQLException("El remito ya no existe");
         }
     }
 
     private int insertar(Connection c, String sql, int idPadre, int idEstado,
             LocalDateTime inicio, LocalDateTime fin, Empleado responsable) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
+        try (PreparedStatement ps = c.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, idPadre);
             ps.setInt(2, idEstado);
             ps.setTimestamp(3, Timestamp.valueOf(inicio));
@@ -113,8 +160,9 @@ public class RepositorioRecepcion {
             } else {
                 ps.setInt(5, responsable.getId());
             }
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (!rs.next()) throw new SQLException("No se generó la clave del historial");
                 return rs.getInt(1);
             }
         }
@@ -142,7 +190,7 @@ public class RepositorioRecepcion {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) {
                         throw new PersistenciaException("No existe el estado '" + estado.getNombre() + "' ("
-                                + estado.getAmbito() + ") en la base: correr db/migracion_state.sql");
+                                + estado.getAmbito() + ") en la base. Revisá el catálogo de estados.");
                     }
                     id = rs.getInt(1);
                 }

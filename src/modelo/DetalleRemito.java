@@ -4,11 +4,11 @@ import java.time.LocalDateTime;
 
 public class DetalleRemito {
 
-    private String areaCMDestino;
+    private String areaCMCDestino;
     private Documentacion documentacion;
 
-    public DetalleRemito(String areaCMDestino, Documentacion documentacion) {
-        this.areaCMDestino = areaCMDestino;
+    public DetalleRemito(String areaCMCDestino, Documentacion documentacion) {
+        this.areaCMCDestino = areaCMCDestino;
         this.documentacion = documentacion;
     }
 

@@ -30,6 +30,8 @@ public final class Conexion {
     }
 
     public static Connection abrir() throws SQLException {
+        String urlDemo = System.getProperty("bolsin.demo.url");
+        if (urlDemo != null) return DriverManager.getConnection(urlDemo, "sa", "");
         Map<String, String> env = leerArchivoEnv();
         return DriverManager.getConnection(
                 requerida(ENV_URL, env), requerida(ENV_USER, env), requerida(ENV_PASSWORD, env));

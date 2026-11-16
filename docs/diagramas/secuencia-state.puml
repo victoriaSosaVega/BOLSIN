@@ -1,0 +1,53 @@
+@startuml
+title CU28 - Registro de recepción (orden de SECUENCIA 2)
+participant GestorRecepcionDeBolsin as G
+participant "seleccionado:Bolsin" as B
+participant "actual:CambioEstadoBolsin" as CB
+participant Estado as E
+participant Remito as R
+participant DetalleRemito as DR
+participant Documentacion as D
+participant EnBolsinEnviado as S
+participant "actual:CambioEstadoDocumentacion" as CD
+G -> G : registrarRecepcionDeBolsin()
+G -> G : buscarEstadoRecibidoEnCMDestinoBolsin()
+loop estados
+G -> E : esAmbitoBolsin()
+G -> E : esRecibidoEnCMDestino()
+end
+G -> G : buscarEstadoRecibidoyAceptadoRemito()
+loop estados
+G -> E : esAmbitoRemito()
+G -> E : esRecibidoyAceptado()
+end
+G -> G : obtenerFechaActual()
+G -> B : marcarRecibidoEnCMDestino(fecha, empleado, estadoBolsin, estadoRemito)
+note right of B : Validar todo el agregado antes de modificarlo.
+B -> CB : setFechaHoraFin(fecha)
+B -> B : marcarRecibidoyAceptadoRemito(fecha, empleado, estadoRemito)
+loop remitos
+B -> R : marcarRecibidoyAceptado(fecha, empleado, estadoRemito)
+R -> R : marcarRecibidayAceptadaDocumentacion(fecha, empleado)
+loop detalles
+R -> DR : marcarRecibidayAceptadaDocumentacion(fecha, empleado)
+DR -> D : marcarRecibidayAceptada(fecha, empleado)
+D -> S : marcarRecibidayAceptada(this, fecha, empleado, historiales)
+S -> S : buscarHistorial(fecha, historiales)
+S -> CD : esActual()
+S -> CD : setFechaHoraFin(fecha)
+S -> S : crearEstado()
+create participant RecibidayAceptada as A
+S -> A : new()
+S -> S : crearCambioEstado(fecha, estado, empleado)
+create participant "nuevo:CambioEstadoDocumentacion" as N
+S -> N : new(fecha, estado, empleado)
+S -> D : setEstado(estado)
+S -> D : agregarCambioEstado(nuevo)
+end
+R -> R : setEstado(estadoRemito)
+end
+B -> B : crearCambioEstado(fecha, estadoBolsin, empleado)
+create participant "recibido:CambioEstadoBolsin" as NB
+B -> NB : new(fecha, estadoBolsin, empleado)
+B -> B : agregarCambioEstado(nuevo)
+@enduml

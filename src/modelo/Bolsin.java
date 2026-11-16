@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Bolsin {
 
-    // "Persistencia" simulada: repositorio estatico en memoria (sin BD real).
+    // Catálogo cargado desde la base para la búsqueda modelada.
     private static List<Bolsin> bolsines = new ArrayList<>();
 
     // Clave de la tabla bolsin (solo para persistencia).
@@ -15,7 +15,7 @@ public class Bolsin {
     private int numeroBolsin;
     private String numeroPrecinto;
     private LocalDate fecha;
-    private double peso;
+    private float peso;
     private CM cmOrigen;
     private CM cmDestino;
     private List<Remito> remitos = new ArrayList<>();
@@ -23,7 +23,7 @@ public class Bolsin {
     // Cambio de estado vigente: se guarda al encontrarlo en la busqueda (esEstadoEnviado).
     private CambioEstadoBolsin cambioEstadoActual;
 
-    public Bolsin(int numeroBolsin, String numeroPrecinto, LocalDate fecha, double peso, CM cmOrigen, CM cmDestino) {
+    public Bolsin(int numeroBolsin, String numeroPrecinto, LocalDate fecha, float peso, CM cmOrigen, CM cmDestino) {
         this.numeroBolsin = numeroBolsin;
         this.numeroPrecinto = numeroPrecinto;
         this.fecha = fecha;
@@ -76,7 +76,7 @@ public class Bolsin {
     // Devuelve el cambio de estado vigente. Si ya se encontro en la busqueda no
     // se vuelve a buscar; si dejo de ser el vigente (o no se busco), se recalcula.
     public CambioEstadoBolsin getCambioEstadoActual() {
-        if (cambioEstadoActual != null && cambioEstadoActual.esActual()) {
+        if (cambioEstadoActual != null && cambiosEstado.contains(cambioEstadoActual) && cambioEstadoActual.esActual()) {
             return cambioEstadoActual;
         }
         cambioEstadoActual = null;
@@ -99,21 +99,60 @@ public class Bolsin {
     }
 
     // Bolsin cambia de estado sin patron State: cierra el cambio vigente (el que se
-    // encontro al buscar los bolsines Enviado), registra el nuevo con el estado que le
-    // pasa el Gestor y despues marca recibido y aceptado cada remito.
+    // encontro al buscar los bolsines Enviado), marca recibido y aceptado cada remito y
+    // finalmente registra el nuevo estado recibido del Gestor (SECUENCIA 2).
     public void marcarRecibidoEnCMDestino(LocalDateTime fechaActual, Empleado empleado,
                                           Estado estadoRecibidoEnCMDestino, Estado estadoRecibidoyAceptado) {
+        validarRecepcion(fechaActual, empleado, estadoRecibidoEnCMDestino, estadoRecibidoyAceptado);
         if (!esEstadoEnviado()) {
             throw new IllegalStateException("El bolsin " + numeroBolsin + " no esta en estado Enviado");
         }
         CambioEstadoBolsin actual = getCambioEstadoActual();
         actual.setFechaHoraFin(fechaActual);
 
+        marcarRecibidoyAceptadoRemito(fechaActual, empleado, estadoRecibidoyAceptado);
         CambioEstadoBolsin nuevo = crearCambioEstado(fechaActual, estadoRecibidoEnCMDestino, empleado);
         agregarCambioEstado(nuevo);
-
-        marcarRecibidoyAceptadoRemito(fechaActual, empleado, estadoRecibidoyAceptado);
     }
+
+    // Precondiciones: se comprueba todo antes del primer cambio de la secuencia.
+    private void validarRecepcion(LocalDateTime fecha, Empleado empleado, Estado destino, Estado remito) {
+        if (fecha == null || empleado == null || cmDestino == null || empleado.getCM() == null
+                || !empleado.getCM().getCodigo().equals(cmDestino.getCodigo())) {
+            throw new IllegalStateException("El responsable debe pertenecer a la CM destino.");
+        }
+        if ("CMC".equalsIgnoreCase(cmDestino.getCodigo())) {
+            throw new IllegalStateException("La recepción en CMC requiere el flujo de redirección A5, fuera del escenario implementado.");
+        }
+        if (destino == null || !destino.esAmbitoBolsin() || !destino.esRecibidoEnCMDestino()
+                || remito == null || !remito.esAmbitoRemito() || !remito.esRecibidoyAceptado()) {
+            throw new IllegalStateException("Los estados de recepción no corresponden a sus ámbitos.");
+        }
+        if (cambiosEstado.stream().filter(CambioEstadoBolsin::esActual).count() != 1
+                || fecha.isBefore(getCambioEstadoActual().getFechaHoraInicio()) || remitos.isEmpty()) {
+            throw new IllegalStateException("El bolsín debe tener un historial vigente y al menos un remito.");
+        }
+        java.util.Set<Documentacion> documentos = new java.util.HashSet<>();
+        for (Remito r : remitos) {
+            if (r.getEstado() == null || !r.getEstado().esAmbitoRemito()
+                    || !"En Bolsin Enviado".equals(r.getEstado().getNombre())
+                    || r.obtenerDatosDocumentacion().isEmpty()) {
+                throw new IllegalStateException("El remito debe estar enviado y contener documentación.");
+            }
+            for (DetalleRemito detalle : r.obtenerDatosDocumentacion()) {
+                Documentacion doc = detalle.obtenerDatosDocumentacion();
+                if (doc == null || !documentos.add(doc) || !(doc.getEstado() instanceof EnBolsinEnviado)) {
+                    throw new IllegalStateException("La documentación debe estar enviada y no repetida.");
+                }
+                doc.validarHistorial(fecha);
+            }
+        }
+    }
+
+    public static List<Bolsin> getBolsines() { return List.copyOf(bolsines); }
+
+    // Infraestructura de carga: evita acumular objetos de cargas anteriores.
+    public static void limpiarCatalogo() { bolsines.clear(); }
 
     private CambioEstadoBolsin crearCambioEstado(LocalDateTime fechaActual, Estado estado, Empleado empleado) {
         return new CambioEstadoBolsin(fechaActual, estado, empleado);
@@ -126,7 +165,7 @@ public class Bolsin {
     }
 
     // Experto: Bolsin es quien tiene la CM destino y el estado, asi que es
-    // quien resuelve la busqueda para el Gestor (persistencia simulada).
+    // quien permite consultar el catálogo cargado desde la base.
     public static List<Bolsin> buscarBolsinesEnEstadoEnviadoParaCMEmpleado(String nombreCMEmpleado) {
         List<Bolsin> resultado = new ArrayList<>();
         for (Bolsin b : bolsines) {

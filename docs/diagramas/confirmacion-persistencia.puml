@@ -1,0 +1,31 @@
+@startuml
+title CU28 - Complemento técnico: confirmación, persistencia y error
+actor EB
+participant PantallaRecepcionDeBolsin as P
+participant GestorRecepcionDeBolsin as G
+participant RespaldoRecepcion as R
+participant RepositorioRecepcion as DB
+participant PantallaNotificacionRecepcionBolsin as N
+EB -> P : confirmar / no confirmar
+P -> G : tomarConfirmacion(confirma)
+alt A6: no confirma
+note right of G : Retorna sin modificar objetos ni base.
+else confirma
+G -> R : new(bolsinSeleccionado)
+G -> G : registrarRecepcionDeBolsin()
+ref over G : secuencia-state.puml
+G -> DB : guardar(bolsinSeleccionado, remitos)
+alt falla validación o guardado
+DB --> G : error (rollback si comenzó la transacción)
+G -> R : restaurar()
+G -> P : mostrarErrorGuardado(detalle)
+else commit exitoso
+G -> G : llamarCU29()
+G -> G : notificarCMOrigen()
+G -> N : notificar(bolsin)
+note right of N : Simulación por cada CM origen de documentación.
+G -> G : finCU()
+G -> P : finCU()
+end
+end
+@enduml

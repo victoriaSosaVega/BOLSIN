@@ -1,24 +1,28 @@
 package boundary;
 
 import modelo.Bolsin;
+import modelo.CM;
 import modelo.Documentacion;
-import modelo.Remito;
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-// Nota de la revision del diagrama: conceptualmente esto representa el
-// envio de un mail (CU29 tiene como Actor Secundario al Servidor de Correo,
-// segun el ERS), no una pantalla vista por el usuario. Se mantiene el nombre
-// y la forma tal como esta en los diagramas ya entregados/corregidos, y se
-// simula el envio por consola.
+/** Adaptador de CU29: simulación explícita, sin enviar correos reales. */
 public class PantallaNotificacionRecepcionBolsin {
-
     public void notificar(Bolsin bolsin) {
-        System.out.println("[CU29 - Notificacion] Email a CM origen: " + bolsin.getCMOrigen().getNombre());
-        System.out.println("  Bolsin #" + bolsin.getNumeroBolsin() + " recibido en CM destino.");
-        for (Remito r : bolsin.buscarRemitos()) {
-            for (var detalle : r.obtenerDatosDocumentacion()) {
-                Documentacion doc = detalle.obtenerDatosDocumentacion();
-                System.out.println("  - Documentacion '" + doc.getAsunto() + "': " + doc.getCambioEstadoActual().getEstado().getNombre());
+        Map<CM, List<Documentacion>> porOrigen = new LinkedHashMap<>();
+        for (var remito : bolsin.buscarRemitos()) {
+            for (var detalle : remito.obtenerDatosDocumentacion()) {
+                var doc = detalle.obtenerDatosDocumentacion();
+                if (doc.getCMOrigen() == null) throw new IllegalStateException("Falta la CM origen de la documentación.");
+                porOrigen.computeIfAbsent(doc.getCMOrigen(), cm -> new ArrayList<>()).add(doc);
             }
         }
+        porOrigen.forEach((cm, docs) -> {
+            System.out.println("[CU29 SIMULADO] Para: " + cm.getNombre() + " <" + cm.getEmail() + ">");
+            System.out.println("Bolsín #" + bolsin.getNumeroBolsin() + " recibido en CM destino.");
+            for (var doc : docs) System.out.println("  " + doc.getAsunto() + ": " + doc.getEstado().getNombre());
+        });
     }
 }
