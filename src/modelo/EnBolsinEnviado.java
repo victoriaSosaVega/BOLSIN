@@ -4,14 +4,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Estado "En Bolsin Enviado" de una DOCUMENTACION. Es distinto del del remito
- * (EnBolsinEnviadoRemito): en el diagrama las dos clases se llaman
- * EnBolsinEnviado, pero cada una resuelve transiciones propias de su ambito.
+ * Estado "En Bolsin Enviado" de una DOCUMENTACION: el bolsin que la lleva ya salio
+ * hacia la CM destino. Ejecuta la recepcion del CU28 (marcarRecibidayAceptada) y
+ * las demas salidas posibles (no recibida, rechazada, para redirigir).
  */
-public final class EnBolsinEnviadoDocumentacion extends Estado {
+public final class EnBolsinEnviado extends EstadoDocumentacion {
 
-    public EnBolsinEnviadoDocumentacion() {
-        super("En Bolsin Enviado", "Documentacion en bolsin enviado", AMBITO_DOCUMENTACION);
+    public EnBolsinEnviado() {
+        super("En Bolsin Enviado", "Documentacion en bolsin enviado");
     }
 
     @Override
@@ -21,7 +21,7 @@ public final class EnBolsinEnviadoDocumentacion extends Estado {
         if (actual != null && actual.esActual()) {
             actual.setFechaHoraFin(fechaActual);
         }
-        Estado recibidayAceptada = crearEstado();
+        EstadoDocumentacion recibidayAceptada = crearEstado();
         CambioEstadoDocumentacion nuevo = crearCambioEstado(fechaActual, recibidayAceptada, empleado);
         documentacion.setEstado(recibidayAceptada);
         documentacion.agregarCambioEstado(nuevo);
@@ -55,11 +55,12 @@ public final class EnBolsinEnviadoDocumentacion extends Estado {
         return null;
     }
 
-    public Estado crearEstado() {
+    public EstadoDocumentacion crearEstado() {
         return new RecibidayAceptada();
     }
 
-    public CambioEstadoDocumentacion crearCambioEstado(LocalDateTime fechaActual, Estado estado, Empleado empleado) {
+    public CambioEstadoDocumentacion crearCambioEstado(LocalDateTime fechaActual, EstadoDocumentacion estado,
+                                                       Empleado empleado) {
         return new CambioEstadoDocumentacion(fechaActual, estado, empleado);
     }
 }

@@ -6,7 +6,9 @@
 --   1. Agrega id_empleado (el responsable) a los dos historiales de estado.
 --   2. Carga los estados que el modelo necesita y la base no tenia.
 --   3. Deja un estado inicial en remitos y documentacion: el codigo viejo lo
---      suponia "En Bolsin Enviado" en memoria; con State tiene que estar en la base.
+--      suponia "En Bolsin Enviado" en memoria. La documentacion lo necesita para
+--      el patron State (delega en su estado actual); el remito, que no usa State,
+--      lo guarda como dato.
 --
 -- No borra ni modifica datos existentes: solo completa lo que falta.
 
@@ -20,8 +22,8 @@ ALTER TABLE cambio_estado_documentacion
     ADD COLUMN IF NOT EXISTS id_empleado int4 REFERENCES empleado(id_empleado);
 
 -- 2. Estados del diagrama de clases. Solo "En Bolsin Enviado" existe en dos ambitos
---    (Remito y Documentacion): son dos estados distintos, con una fila por ambito.
---    "Recibido y Aceptado Parcial" queda en la tabla pero el modelo no tiene clase para ella.
+--    (Remito y Documentacion): son dos filas de la tabla, una por ambito. En el modelo la
+--    de Documentacion es la clase EnBolsinEnviado (State) y la de Remito, un Estado simple.
 INSERT INTO estado (nombre, descripcion, ambito)
 SELECT v.nombre, v.descripcion, v.ambito
 FROM (VALUES

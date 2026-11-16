@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** Documentacion recibida que no corresponde a la CM destino. */
-public final class RecibidaYRechazada extends Estado {
+public final class RecibidaYRechazada extends EstadoDocumentacion {
 
     public RecibidaYRechazada() {
-        super("Recibida y Rechazada", "Documentacion que no corresponde a la CM destino", AMBITO_DOCUMENTACION);
+        super("Recibida y Rechazada", "Documentacion que no corresponde a la CM destino");
     }
 
     @Override

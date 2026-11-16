@@ -18,7 +18,6 @@ public class Bolsin {
     private double peso;
     private CM cmOrigen;
     private CM cmDestino;
-    private Estado estado;
     private List<Remito> remitos = new ArrayList<>();
     private List<CambioEstadoBolsin> cambiosEstado = new ArrayList<>();
     // Cambio de estado vigente: se guarda al encontrarlo en la busqueda (esEstadoEnviado).
@@ -63,14 +62,6 @@ public class Bolsin {
         remitos.add(remito);
     }
 
-    public void setEstado(Estado estado) {
-        this.estado = estado;
-    }
-
-    public Estado getEstado() {
-        return estado;
-    }
-
     public void agregarCambioEstado(CambioEstadoBolsin cambio) {
         cambiosEstado.add(cambio);
         if (cambio.esActual()) {
@@ -107,8 +98,31 @@ public class Bolsin {
         return remitos;
     }
 
-    public void marcarRecibidoEnCMDestino(LocalDateTime fechaActual, Empleado empleado) {
-        estado.marcarRecibidoEnCMDestino(this, fechaActual, empleado);
+    // Bolsin cambia de estado sin patron State: cierra el cambio vigente (el que se
+    // encontro al buscar los bolsines Enviado), registra el nuevo con el estado que le
+    // pasa el Gestor y despues marca recibido y aceptado cada remito.
+    public void marcarRecibidoEnCMDestino(LocalDateTime fechaActual, Empleado empleado,
+                                          Estado estadoRecibidoEnCMDestino, Estado estadoRecibidoyAceptado) {
+        if (!esEstadoEnviado()) {
+            throw new IllegalStateException("El bolsin " + numeroBolsin + " no esta en estado Enviado");
+        }
+        CambioEstadoBolsin actual = getCambioEstadoActual();
+        actual.setFechaHoraFin(fechaActual);
+
+        CambioEstadoBolsin nuevo = crearCambioEstado(fechaActual, estadoRecibidoEnCMDestino, empleado);
+        agregarCambioEstado(nuevo);
+
+        marcarRecibidoyAceptadoRemito(fechaActual, empleado, estadoRecibidoyAceptado);
+    }
+
+    private CambioEstadoBolsin crearCambioEstado(LocalDateTime fechaActual, Estado estado, Empleado empleado) {
+        return new CambioEstadoBolsin(fechaActual, estado, empleado);
+    }
+
+    private void marcarRecibidoyAceptadoRemito(LocalDateTime fechaActual, Empleado empleado, Estado estadoRemito) {
+        for (Remito remito : remitos) {
+            remito.marcarRecibidoyAceptado(fechaActual, empleado, estadoRemito);
+        }
     }
 
     // Experto: Bolsin es quien tiene la CM destino y el estado, asi que es

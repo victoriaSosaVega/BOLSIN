@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** Documentacion incluida en un remito que todavia no esta en un bolsin. */
-public final class EnRemito extends Estado {
+public final class EnRemito extends EstadoDocumentacion {
 
     public EnRemito() {
-        super("En Remito", "Documentacion incluida en un remito", AMBITO_DOCUMENTACION);
+        super("En Remito", "Documentacion incluida en un remito");
     }
 
     @Override

@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** Documentacion que se debe redirigir a otra area de la CM destino. */
-public final class ParaRedirigir extends Estado {
+public final class ParaRedirigir extends EstadoDocumentacion {
 
     public ParaRedirigir() {
-        super("Para Redirigir", "Documentacion a redirigir a otra area de la CMC", AMBITO_DOCUMENTACION);
+        super("Para Redirigir", "Documentacion a redirigir a otra area de la CMC");
     }
 
     @Override

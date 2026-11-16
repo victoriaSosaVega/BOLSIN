@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** Documentacion incluida en un bolsin que todavia no fue retirado. */
-public final class EnBolsinSaliente extends Estado {
+public final class EnBolsinSaliente extends EstadoDocumentacion {
 
     public EnBolsinSaliente() {
-        super("En Bolsin Saliente", "Documentacion en bolsin saliente", AMBITO_DOCUMENTACION);
+        super("En Bolsin Saliente", "Documentacion en bolsin saliente");
     }
 
     @Override
@@ -19,6 +19,6 @@ public final class EnBolsinSaliente extends Estado {
     @Override
     public void retirar(Documentacion documentacion, LocalDateTime fechaActual, Empleado empleado,
             List<CambioEstadoDocumentacion> historiales) {
-        cambiarEstadoDocumentacion(documentacion, new EnBolsinEnviadoDocumentacion(), fechaActual, empleado, historiales);
+        cambiarEstadoDocumentacion(documentacion, new EnBolsinEnviado(), fechaActual, empleado, historiales);
     }
 }

@@ -13,7 +13,7 @@ public class Documentacion {
     private String asunto;
     private LocalDate fechaPase;
     private TipoDocumentacion tipoDocumentacion;
-    private Estado estado;
+    private EstadoDocumentacion estado;
     private List<CambioEstadoDocumentacion> cambiosEstado = new ArrayList<>();
 
     public Documentacion(int numero, String asunto, LocalDate fechaPase, TipoDocumentacion tipoDocumentacion) {
@@ -44,11 +44,11 @@ public class Documentacion {
         return tipoDocumentacion;
     }
 
-    public void setEstado(Estado estado) {
+    public void setEstado(EstadoDocumentacion estado) {
         this.estado = estado;
     }
 
-    public Estado getEstado() {
+    public EstadoDocumentacion getEstado() {
         return estado;
     }
 
@@ -112,7 +112,7 @@ public class Documentacion {
         estadoActual().retirar(this, fechaActual, empleado, cambiosEstado);
     }
 
-    private Estado estadoActual() {
+    private EstadoDocumentacion estadoActual() {
         if (estado == null) {
             throw new IllegalStateException("La documentacion '" + asunto
                     + "' no tiene estado en la base: correr db/migracion_state.sql");

@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** Documentacion que figuraba en el remito pero no llego en el bolsin. */
-public final class NoRecibida extends Estado {
+public final class NoRecibida extends EstadoDocumentacion {
 
     public NoRecibida() {
-        super("No Recibida", "Documentacion que no llego en el bolsin", AMBITO_DOCUMENTACION);
+        super("No Recibida", "Documentacion que no llego en el bolsin");
     }
 
     @Override

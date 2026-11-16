@@ -5,6 +5,7 @@ import boundary.PantallaRecepcionDeBolsin;
 import modelo.Bolsin;
 import modelo.CM;
 import modelo.Empleado;
+import modelo.Estado;
 import modelo.Remito;
 import modelo.Sesion;
 import persistencia.PersistenciaException;
@@ -23,6 +24,8 @@ public class GestorRecepcionDeBolsin {
     private List<Bolsin> bolsines;
     private Bolsin bolsinSeleccionado;
     private List<Remito> remitos;
+    private Estado estadoRecibidoEnCMDestino;
+    private Estado estadoRecibidoyAceptado;
 
     public GestorRecepcionDeBolsin(Sesion sesionActiva, PantallaRecepcionDeBolsin pantalla) {
         this.sesionActiva = sesionActiva;
@@ -75,8 +78,32 @@ public class GestorRecepcionDeBolsin {
     }
 
     public void registrarRecepcionDeBolsin() {
+        buscarEstadoRecibidoEnCMDestinoBolsin();
+        buscarEstadoRecibidoyAceptadoRemito();
         LocalDateTime fechaActual = obtenerFechaActual();
-        bolsinSeleccionado.marcarRecibidoEnCMDestino(fechaActual, empleadoLogueado);
+        bolsinSeleccionado.marcarRecibidoEnCMDestino(fechaActual, empleadoLogueado,
+                estadoRecibidoEnCMDestino, estadoRecibidoyAceptado);
+    }
+
+    // El estado de la documentacion no se busca: lo crea el propio estado (patron State).
+    private void buscarEstadoRecibidoEnCMDestinoBolsin() {
+        for (Estado estado : Estado.getEstados()) {
+            if (estado.esAmbitoBolsin() && estado.esRecibidoEnCMDestino()) {
+                estadoRecibidoEnCMDestino = estado;
+                return;
+            }
+        }
+        throw new IllegalStateException("No existe el estado 'Recibido en CM Destino' (Bolsin)");
+    }
+
+    private void buscarEstadoRecibidoyAceptadoRemito() {
+        for (Estado estado : Estado.getEstados()) {
+            if (estado.esAmbitoRemito() && estado.esRecibidoyAceptado()) {
+                estadoRecibidoyAceptado = estado;
+                return;
+            }
+        }
+        throw new IllegalStateException("No existe el estado 'Recibido y Aceptado' (Remito)");
     }
 
     private LocalDateTime obtenerFechaActual() {

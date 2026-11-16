@@ -8,6 +8,7 @@ import modelo.DetalleRemito;
 import modelo.Documentacion;
 import modelo.Empleado;
 import modelo.Estado;
+import modelo.EstadoDocumentacion;
 import modelo.Remito;
 import modelo.Sesion;
 import modelo.TipoDocumentacion;
@@ -27,8 +28,9 @@ import java.util.Map;
 // antes hacia MainCU28: el constructor de Bolsin sigue registrandolo en su lista
 // estatica, asi que Bolsin.buscarBolsinesEnEstadoEnviadoParaCMEmpleado()
 // funciona igual que en el diagrama de secuencia, ahora con los datos de la base.
-// Cada Estado de la base se arma como su subclase concreta (patron State) y el
-// estado actual de bolsin, remito y documentacion se deja cargado en el objeto.
+// Los estados de Bolsin y Remito son Estado simples; los de Documentacion se arman
+// como su subclase concreta (patron State). El estado actual del remito y de la
+// documentacion queda cargado en el objeto; el del bolsin sale de su historial.
 public final class CargadorDeDatos {
 
     private CargadorDeDatos() {
@@ -76,7 +78,8 @@ public final class CargadorDeDatos {
              ResultSet rs = st.executeQuery(
                      "select id_estado, nombre, descripcion, ambito from estado order by id_estado")) {
             while (rs.next()) {
-                Estado e = FabricaDeEstados.crear(rs.getString("ambito"), rs.getString("nombre"));
+                Estado e = FabricaDeEstados.crear(rs.getString("ambito"), rs.getString("nombre"),
+                        rs.getString("descripcion"));
                 if (e != null) {
                     e.setId(rs.getInt("id_estado"));
                     mapa.put(e.getId(), e);
@@ -214,9 +217,6 @@ public final class CargadorDeDatos {
                         responsable(rs, empleados));
                 cambio.setId(rs.getInt("id_cambio_estado_bolsin"));
                 bolsin.agregarCambioEstado(cambio);
-                if (cambio.esActual()) {
-                    bolsin.setEstado(cambio.getEstado());
-                }
             }
         }
     }
@@ -230,7 +230,7 @@ public final class CargadorDeDatos {
             while (rs.next()) {
                 Documentacion documentacion = documentaciones.get(rs.getInt("id_documentacion"));
                 CambioEstadoDocumentacion cambio = new CambioEstadoDocumentacion(
-                        estadoRequerido(estados, rs.getInt("id_estado")),
+                        estadoDocumentacionRequerido(estados, rs.getInt("id_estado")),
                         fecha(rs, "fecha_hora_inicio"), fecha(rs, "fecha_hora_fin"),
                         responsable(rs, empleados));
                 cambio.setId(rs.getInt("id_cambio_estado_doc"));
@@ -261,6 +261,16 @@ public final class CargadorDeDatos {
             throw new PersistenciaException("El estado " + idEstado + " de la base no tiene clase en el modelo.");
         }
         return estado;
+    }
+
+    // El estado de una documentacion tiene que ser una subclase de EstadoDocumentacion.
+    private static EstadoDocumentacion estadoDocumentacionRequerido(Map<Integer, Estado> estados, int idEstado) {
+        Estado estado = estadoRequerido(estados, idEstado);
+        if (!(estado instanceof EstadoDocumentacion)) {
+            throw new PersistenciaException("El estado " + idEstado + " ('" + estado.getNombre()
+                    + "', ambito " + estado.getAmbito() + ") no es un estado de documentacion.");
+        }
+        return (EstadoDocumentacion) estado;
     }
 
     // id_empleado puede ser null (cambios anteriores a registrar el responsable).

@@ -47,11 +47,16 @@ public class Remito {
         return estado;
     }
 
-    public void marcarRecibidoyAceptado(LocalDateTime fechaActual, Empleado empleado) {
-        if (estado == null) {
-            throw new IllegalStateException("El remito " + numero
-                    + " no tiene estado en la base: correr db/migracion_state.sql");
+    // Remito cambia de estado sin patron State: se asigna el estado que le pasa el
+    // Gestor y despues marca la documentacion de cada detalle.
+    public void marcarRecibidoyAceptado(LocalDateTime fechaActual, Empleado empleado, Estado estadoRecibidoyAceptado) {
+        setEstado(estadoRecibidoyAceptado);
+        marcarRecibidayAceptadaDocumentacion(fechaActual, empleado);
+    }
+
+    private void marcarRecibidayAceptadaDocumentacion(LocalDateTime fechaActual, Empleado empleado) {
+        for (DetalleRemito detalle : detalleRemito) {
+            detalle.marcarRecibidayAceptadaDocumentacion(fechaActual, empleado);
         }
-        estado.marcarRecibidoyAceptado(this, fechaActual, empleado);
     }
 }

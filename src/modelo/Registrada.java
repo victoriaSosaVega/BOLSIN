@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /** Documentacion registrada, todavia sin remito. */
-public final class Registrada extends Estado {
+public final class Registrada extends EstadoDocumentacion {
 
     public Registrada() {
-        super("Registrada", "Documentacion registrada en el sistema", AMBITO_DOCUMENTACION);
+        super("Registrada", "Documentacion registrada en el sistema");
     }
 
     @Override

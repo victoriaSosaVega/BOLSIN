@@ -1,58 +1,48 @@
 package persistencia;
 
 import modelo.DeBaja;
-import modelo.EnBolsinEnviadoDocumentacion;
-import modelo.EnBolsinEnviadoRemito;
+import modelo.EnBolsinEnviado;
 import modelo.EnBolsinSaliente;
 import modelo.EnRemito;
-import modelo.Enviado;
 import modelo.Estado;
 import modelo.NoRecibida;
 import modelo.ParaRedirigir;
 import modelo.RecibidaYRechazada;
 import modelo.RecibidayAceptada;
-import modelo.RecibidoEnCMDestino;
-import modelo.RecibidoyAceptado;
 import modelo.Registrada;
 
-// Arma el Estado concreto que corresponde a una fila de la tabla estado (por
-// ambito y nombre). Devuelve null si el estado de la base no tiene clase en el
-// modelo (por ejemplo "Recibido y Aceptado Parcial"): mientras nadie lo use no molesta.
+// Arma el objeto que corresponde a una fila de la tabla estado. Los estados de
+// Bolsin y Remito son Estado simples (sin patron State); los de Documentacion son
+// la subclase concreta de EstadoDocumentacion que le toca por nombre. Devuelve
+// null si un estado de documentacion de la base no tiene clase en el modelo.
 final class FabricaDeEstados {
 
     private FabricaDeEstados() {
     }
 
-    static Estado crear(String ambito, String nombre) {
+    static Estado crear(String ambito, String nombre, String descripcion) {
+        if (!Estado.AMBITO_DOCUMENTACION.equals(ambito)) {
+            return new Estado(nombre, descripcion, ambito);
+        }
         switch (nombre) {
-            case "Enviado":
-                return ambito.equals(Estado.AMBITO_BOLSIN) ? new Enviado() : null;
-            case "Recibido en CM Destino":
-                return ambito.equals(Estado.AMBITO_BOLSIN) ? new RecibidoEnCMDestino() : null;
-            case "Recibido y Aceptado":
-                return ambito.equals(Estado.AMBITO_REMITO) ? new RecibidoyAceptado() : null;
-            case "Recibida y Aceptada":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new RecibidayAceptada() : null;
-            case "Recibida y Rechazada":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new RecibidaYRechazada() : null;
-            case "No Recibida":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new NoRecibida() : null;
-            case "Para Redirigir":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new ParaRedirigir() : null;
             case "Registrada":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new Registrada() : null;
+                return new Registrada();
             case "En Remito":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new EnRemito() : null;
+                return new EnRemito();
             case "En Bolsin Saliente":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new EnBolsinSaliente() : null;
+                return new EnBolsinSaliente();
             case "En Bolsin Enviado":
-                // Son dos estados distintos, uno por ambito.
-                if (ambito.equals(Estado.AMBITO_REMITO)) {
-                    return new EnBolsinEnviadoRemito();
-                }
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new EnBolsinEnviadoDocumentacion() : null;
+                return new EnBolsinEnviado();
+            case "Recibida y Aceptada":
+                return new RecibidayAceptada();
+            case "Recibida y Rechazada":
+                return new RecibidaYRechazada();
+            case "No Recibida":
+                return new NoRecibida();
+            case "Para Redirigir":
+                return new ParaRedirigir();
             case "De Baja":
-                return ambito.equals(Estado.AMBITO_DOCUMENTACION) ? new DeBaja() : null;
+                return new DeBaja();
             default:
                 return null;
         }
